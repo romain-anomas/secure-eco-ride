@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------
+   THEME — change the whole site by editing these values (RGB channels).
+------------------------------------------------------------------- */
+:root {
+  --c-black: 11 15 16;        /* #0B0F10 */
+  --c-dark: 18 23 25;         /* #121719 */
+  --c-green: 53 169 0;        /* #35A900 primary */
+  --c-green-bright: 85 201 0; /* #55C900 */
+  --c-green-ink: 33 118 0;    /* darker green for text on white (contrast) */
+  --c-white: 255 255 255;
+  --c-light: 245 247 245;     /* #F5F7F5 */
+}
+
+@layer base {
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-white font-sans text-night antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  h1, h2, h3, h4 { @apply font-display; }
+  :focus-visible { outline: 3px solid rgb(var(--c-green-bright)); outline-offset: 2px; }
+  ::selection { background: rgb(var(--c-green) / 0.35); }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .container-x { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .section { @apply py-16 sm:py-20 lg:py-24; }
+
+  /* Headings: bold, tight, uppercase — as on the business card */
+  .h-display { @apply font-display font-black uppercase leading-[0.95] tracking-tight; }
+  .h-section { @apply font-display text-3xl font-black uppercase leading-none tracking-tight sm:text-4xl lg:text-5xl; }
+
+  /* Buttons. Green buttons use dark text: white on #35A900 fails contrast. */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-sm font-extrabold uppercase tracking-wide transition duration-200 disabled:cursor-not-allowed disabled:opacity-60; }
+  .btn-primary { @apply bg-leaf text-night hover:bg-lime active:translate-y-px; }
+  .btn-dark { @apply bg-night text-white hover:bg-coal; }
+  .btn-outline { @apply border-2 border-leaf text-night hover:bg-leaf; }
+  .btn-outline-light { @apply border-2 border-white/40 text-white hover:border-lime hover:text-lime; }
+  .btn-sm { @apply px-4 py-2 text-xs; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+
+  /* Forms */
+  .label { @apply mb-1.5 block text-sm font-semibold text-night; }
+  .input { @apply w-full rounded-xl border border-night/15 bg-white px-4 py-3 text-base text-night placeholder:text-night/40 transition focus:border-leaf focus:outline-none focus:ring-4 focus:ring-leaf/20 disabled:bg-mist; }
+  .input-error { @apply border-red-500 focus:border-red-500 focus:ring-red-500/20; }
+  .field-error { @apply mt-1 text-sm text-red-600; }
+
+  .card { @apply rounded-3xl bg-white shadow-card; }
+  .chip { @apply inline-flex items-center gap-2 rounded-full border border-leaf/50 bg-leaf/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-lime; }
+
+  /* Green divider used between blocks, echoing the card's curved green lines */
+  .rule-green { @apply h-1 w-16 rounded-full bg-leaf; }
+
+  /* Admin */
+  .admin-card { @apply rounded-2xl border border-night/10 bg-white p-5 shadow-sm; }
+  .th { @apply whitespace-nowrap px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-night/60; }
+  .td { @apply px-3 py-3 align-middle text-sm; }
+}
+
+/* Route line drawing: used once, on the "How it works" section */
+@keyframes route-draw { to { stroke-dashoffset: 0; } }
+.route-draw { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: route-draw 2.4s ease-out 0.2s forwards; }
