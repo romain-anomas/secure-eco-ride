@@ -3,6 +3,7 @@ import useSeo from '../hooks/useSeo.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import PageHero from '../components/PageHero.jsx';
 import ContactStrip from '../components/ContactStrip.jsx';
+import { STOCK_PHOTOS } from '../utils/images.js';
 
 const VALUES = [
   [ShieldCheck, 'Safe & secure', 'Safe transportation is the starting point of everything we do.'],
@@ -16,7 +17,7 @@ export default function About() {
   const paragraphs = (settings.about_text || '').split(/\n+/).filter(Boolean);
   return (
     <>
-      <PageHero title="About Secure Eco Ride" intro={settings.slogan} />
+      <PageHero title="About Secure Eco Ride" intro={settings.slogan} image={STOCK_PHOTOS.heroTaxiNight} imageAlt="A taxi driving through the city at night" />
       <section className="section bg-white">
         <div className="container-x grid gap-10 lg:grid-cols-[1.2fr_1fr]">
           <div className="max-w-2xl space-y-5 text-lg leading-relaxed text-night/75">

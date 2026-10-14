@@ -16,12 +16,27 @@
 }
 
 @layer base {
-  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    font-size: clamp(15px, calc(14.5px + 0.1vw), 16px);
+  }
   body {
     @apply bg-white font-sans text-night antialiased;
     padding-bottom: env(safe-area-inset-bottom);
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
   }
-  h1, h2, h3, h4 { @apply font-display; }
+  h1, h2, h3, h4 {
+    @apply font-display;
+    text-wrap: balance;
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-weight: 600 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+  }
+  p, li, dd { text-wrap: pretty; }
+  img, video { max-width: 100%; }
   :focus-visible { outline: 3px solid rgb(var(--c-green-bright)); outline-offset: 2px; }
   ::selection { background: rgb(var(--c-green) / 0.35); }
   @media (prefers-reduced-motion: reduce) {
@@ -34,12 +49,35 @@
   .container-x { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
   .section { @apply py-16 sm:py-20 lg:py-24; }
 
-  /* Headings: bold, tight, uppercase — as on the business card */
-  .h-display { @apply font-display font-black uppercase leading-[0.95] tracking-tight; }
-  .h-section { @apply font-display text-3xl font-black uppercase leading-none tracking-tight sm:text-4xl lg:text-5xl; }
+  /* Shared responsive type scale for page and section headings. */
+  .h-display {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 4rem);
+    letter-spacing: -0.02em;
+    line-height: 1.06;
+    text-wrap: balance;
+  }
+  .h-section {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+  .copy-lead { @apply text-base leading-relaxed sm:text-lg; font-style: italic; }
+  .copy-body { @apply text-base leading-relaxed; }
+  .eyebrow { @apply text-xs font-extrabold uppercase tracking-[0.14em]; }
+  .hero-ad-title {
+    font-family: 'Public Sans', system-ui, sans-serif !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.055em !important;
+    line-height: 0.98;
+  }
 
   /* Buttons. Green buttons use dark text: white on #35A900 fails contrast. */
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-sm font-extrabold uppercase tracking-wide transition duration-200 disabled:cursor-not-allowed disabled:opacity-60; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-sans text-sm font-bold normal-case tracking-normal transition duration-200 disabled:cursor-not-allowed disabled:opacity-60; }
   .btn-primary { @apply bg-leaf text-night hover:bg-lime active:translate-y-px; }
   .btn-dark { @apply bg-night text-white hover:bg-coal; }
   .btn-outline { @apply border-2 border-leaf text-night hover:bg-leaf; }

@@ -84,9 +84,77 @@ Visit:
 - **Website:** http://localhost:5173
 - **Admin:** http://localhost:5173/admin/login
 
+Both development servers also listen on the local network. Vite prints a `Network`
+URL when you run `npm run dev` in `client`; open that URL on another device connected
+to the same Wi-Fi, for example `http://192.168.1.25:5173`. The API prints its LAN URL
+as well, and the Vite proxy forwards the website's API requests to it. If the address
+does not load, allow port 5173 through the computer's firewall. These development URLs
+are for the same local network; access from outside it needs a public HTTPS deployment.
+Push notifications on a phone also require HTTPS outside localhost.
+
 ---
 
-## 5. WhatsApp Cloud API configuration
+## 5. Phone booking alerts
+
+Administrator alerts use Firebase Cloud Messaging (FCM). They are sent only after a booking is committed, only to registered active `ADMIN` devices, and carry the booking reference, pickup/destination, pickup time, and dashboard link. Device registration/removal APIs require an authenticated `ADMIN` token. WhatsApp remains a separate customer/business notification path.
+
+### Firebase project setup
+
+1. Create or select a project in the [Firebase console](https://console.firebase.google.com/).
+2. In **Project settings → General**, register a **Web app**. Copy its `apiKey`, `projectId`, `messagingSenderId`, and `appId` to the client variables below. These web values are public; do not put a service-account private key in a `VITE_` variable.
+3. In **Project settings → Cloud Messaging → Web Push certificates**, generate a key pair and set its public key as `VITE_FIREBASE_VAPID_KEY`. Enable the Firebase Cloud Messaging API (HTTP v1) for the project if the console prompts you.
+4. For the server, use application-default credentials when the host supports them. Otherwise, create a Firebase Admin service-account key in **Project settings → Service accounts** and store the JSON as the server secret `FIREBASE_SERVICE_ACCOUNT_JSON`. Never commit this JSON or put it in the frontend. The service account needs permission to send FCM messages.
+
+### Environment variables
+
+Set these in `client/.env` for local Vite development and in the Vercel project’s **Environment Variables** for production builds:
+
+```dotenv
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_VAPID_KEY=
+VITE_API_URL=
+```
+
+`VITE_API_URL` is the backend base URL including `/api` (for example `https://YOUR-BACKEND-HOST/api`). Local development may leave it blank because Vite proxies `/api` to `http://localhost:5000`.
+
+Set these server-side in the project-root `.env` for local API development and in the backend host’s secret manager for production:
+
+```dotenv
+FIREBASE_PROJECT_ID=
+FIREBASE_SERVICE_ACCOUNT_JSON=
+# Or, instead of FIREBASE_SERVICE_ACCOUNT_JSON, use a protected file path:
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
+# Or on supported Google Cloud hosts, use application-default credentials:
+FIREBASE_USE_APPLICATION_DEFAULT=true
+CLIENT_URL=https://finding-you-ride.vercel.app
+CORS_ORIGINS=http://localhost:5173,https://finding-you-ride.vercel.app
+```
+
+Use exactly one server credential method: `FIREBASE_SERVICE_ACCOUNT_JSON`, a protected `GOOGLE_APPLICATION_CREDENTIALS` file path, or `FIREBASE_USE_APPLICATION_DEFAULT=true` on a host that supplies ADC. Do not commit the credentials file. `CLIENT_URL` is used to build the notification click URL. Add the real backend URL to `VITE_API_URL`; it could not be determined from this repository, and there is no backend deployment config checked in. Do not point Vercel’s frontend API variable at the Vercel frontend URL unless the API is actually hosted there.
+
+### Database and local testing
+
+The schema adds `admin_push_tokens` and `admin_push_deliveries`. For an existing database, run either `cd server && npm run db:migrate:fcm` or rerun `cd server && npm run db:init` (safe and idempotent). Start the local project using the existing scripts:
+
+```bash
+cd server && npm run dev
+cd client && npm run dev
+```
+
+In one terminal, run `cd server && npm run dev`; in another, run `cd client && npm run dev`. Open `http://localhost:5173/admin`, click **Enable notifications** on the admin dashboard, allow permission, then click **Enable sound** and **Test sound** as needed. Submit a booking from another browser window. Foreground FCM drives the in-dashboard sound/banner; when the admin page is in the background or closed, the Firebase service worker shows one system notification. Clicking it opens that booking. Localhost is treated as a secure context; a phone using the LAN `http://192.168…` URL cannot register web push. Phone testing requires the public HTTPS site and a reachable HTTPS backend. On iPhone, add the site to the Home Screen first. Device notification settings control background alert sound.
+
+### Production deployment
+
+The frontend URL provided for production is `https://finding-you-ride.vercel.app/`. Keep the current Vercel frontend deployment. This repository does not identify the deployed API host or include a Vercel/API deployment configuration, so the production `VITE_API_URL` and the matching backend `CORS_ORIGINS` must be filled with the actual backend URL from its hosting dashboard. The backend must be a reachable Node.js service with the project’s MySQL database and Firebase service credentials; this project does not confirm that the backend runs on Vercel.
+
+After setting Vercel variables, redeploy the frontend so Vite builds them into the client. Set `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON` (or host-provided application-default credentials), `CLIENT_URL`, and `CORS_ORIGINS` as backend environment/secrets, then redeploy/restart the API and apply the migration. Firebase web messaging and service workers require HTTPS in production.
+
+---
+
+## 6. WhatsApp Cloud API configuration
 
 This is the most important integration in the system: **every new booking is sent to
 all three Secure Eco Ride business numbers** via the official
@@ -94,7 +162,7 @@ all three Secure Eco Ride business numbers** via the official
 There is no automatic "fake" WhatsApp sending — a plain `wa.me` link **cannot** send a
 message without a human pressing Send, and this system never pretends otherwise.
 
-### 5.1 Development fallback (no credentials needed)
+### 6.1 Development fallback (no credentials needed)
 
 If `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are left empty:
 
@@ -105,7 +173,7 @@ If `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are left empty:
 - Every attempt is logged in **Admin → WhatsApp logs** with status `SKIPPED` and an
   explanation, so it's always clear nothing was sent automatically.
 
-### 5.2 Production setup
+### 6.2 Production setup
 
 1. Create a [Meta developer app](https://developers.facebook.com/) with the WhatsApp
    product added, and complete Business verification.
@@ -162,7 +230,7 @@ If `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are left empty:
 6. Restart the server. Check **Admin → WhatsApp logs** for the connection status
    banner, and use **"Send test message"** to confirm delivery to all three numbers.
 
-### 5.3 How delivery failures are handled
+### 6.3 How delivery failures are handled
 
 - One recipient failing **never** blocks the other two — each send is independent.
 - A booking is **never deleted or hidden** because a WhatsApp send failed. The customer
@@ -174,7 +242,7 @@ If `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are left empty:
 
 ---
 
-## 6. Booking system configuration
+## 7. Booking system configuration
 
 - **Services** shown in the booking form come from **Admin → Services** (seeded with
   the four services from the business card). Only services marked *bookable* and
@@ -194,7 +262,7 @@ If `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are left empty:
 
 ---
 
-## 7. Admin credentials (development only)
+## 8. Admin credentials (development only)
 
 ```
 Email:    admin@secureecoride.com
@@ -208,18 +276,18 @@ deploying.
 
 ---
 
-## 8. Production build
+## 9. Production build
 
 ```bash
 cd client
-SITE_URL=https://www.your-domain.com npm run build     # writes sitemap.xml/robots.txt, then builds to client/dist
+SITE_URL=https://finding-you-ride.vercel.app npm run build     # writes sitemap.xml/robots.txt, then builds to client/dist
 ```
 
 Two deployment shapes are supported:
 
 **A. Separate hosting (recommended)** — deploy `client/dist` as a static site (Netlify,
 Vercel, S3+CloudFront, nginx) and the `server` folder as a Node service (Render,
-Railway, a VPS with PM2). Set `VITE_API_URL` to the API's public URL before building,
+Railway, a VPS with PM2). Set `VITE_API_URL` to the API's public URL including `/api` before building,
 and `CORS_ORIGINS` on the server to the site's public URL.
 
 **B. Single server** — set `SERVE_CLIENT=true` in `.env`, build the client first, then
@@ -251,7 +319,7 @@ NODE_ENV=production ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='a-strong-passwor
 
 ---
 
-## 9. Testing what you've deployed
+## 10. Testing what you've deployed
 
 1. **Booking flow:** submit a booking on `/booking` → confirm you get a booking
    reference and, in fallback mode, working "Send to…" WhatsApp links.
@@ -268,7 +336,7 @@ NODE_ENV=production ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='a-strong-passwor
 
 ---
 
-## 10. Tech stack
+## 11. Tech stack
 
 | Layer     | Technology |
 |-----------|------------|
@@ -279,7 +347,7 @@ NODE_ENV=production ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='a-strong-passwor
 
 ---
 
-## 11. Notes on content honesty
+## 12. Notes on content honesty
 
 Per the project brief, this codebase does **not** invent company history, vehicles,
 prices, office address, customer reviews, or driver information. Everything shown

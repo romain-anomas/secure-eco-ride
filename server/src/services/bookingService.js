@@ -77,8 +77,8 @@ export async function createBooking(data) {
 
   const id = await withTransaction(async (conn) => {
     const [cust] = await conn.query(
-      `INSERT INTO customers (name, phone, email) VALUES (?, ?, ?) AS new
-       ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(customers.id), name = new.name, email = COALESCE(new.email, customers.email)`,
+      `INSERT INTO customers (name, phone, email) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(customers.id), name = VALUES(name), email = COALESCE(VALUES(email), customers.email)`,
       [data.customer_name, phone, data.email || null],
     );
     const reference = await nextReference(conn);

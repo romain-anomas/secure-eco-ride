@@ -3,6 +3,7 @@ import useSeo from '../hooks/useSeo.js';
 import PageHero from '../components/PageHero.jsx';
 import CorporateForm from '../components/CorporateForm.jsx';
 import ContactStrip from '../components/ContactStrip.jsx';
+import { STOCK_PHOTOS } from '../utils/images.js';
 
 const AUDIENCE = [
   [Briefcase, 'Businesses', 'Staff and client transport that runs to schedule.'],
@@ -17,7 +18,7 @@ export default function Corporate() {
   useSeo({ title: 'Corporate & Private Travel | Secure Eco Ride', description: 'Reliable transport for businesses, hotels, organizations, events, executives and private clients.' });
   return (
     <>
-      <PageHero title="Corporate & private travel" intro="Professional transport for businesses, hotels, organizations, events, executives and private clients." />
+      <PageHero title="Corporate & private travel" intro="Professional transport for businesses, hotels, organizations, events, executives and private clients." image={STOCK_PHOTOS.fleetSuv} imageAlt="Executive SUV used for corporate travel" />
       <section className="section bg-mist">
         <div className="container-x">
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

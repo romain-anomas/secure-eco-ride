@@ -1,0 +1,147 @@
+import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
+import { pool } from '../config/db.js';
+import { config } from '../config/env.js';
+
+let messaging = null;
+let setupError = 'Firebase Admin credentials are not configured.';
+
+try {
+  let credential;
+  let projectId = config.firebase.projectId || undefined;
+  if (config.firebase.serviceAccountJson) {
+    const account = JSON.parse(config.firebase.serviceAccountJson);
+    projectId ||= account.project_id;
+    credential = cert(account);
+  } else if (config.firebase.credentialsPath || config.firebase.useApplicationDefault) {
+    if (config.firebase.credentialsPath && !existsSync(config.firebase.credentialsPath)) {
+      throw new Error('Firebase application credential file was not found.');
+    }
+    credential = applicationDefault();
+  }
+
+  if (credential) {
+    const app = getApps()[0] || initializeApp({ credential, ...(projectId ? { projectId } : {}) });
+    messaging = getMessaging(app);
+    setupError = null;
+  }
+} catch (err) {
+  setupError = 'Firebase Admin configuration is invalid.';
+  console.error('[fcm] Firebase Admin initialization failed:', err.code || 'configuration_error');
+}
+
+export const isFcmConfigured = () => Boolean(messaging);
+
+const tokenHash = (token) => createHash('sha256').update(token).digest('hex');
+
+export async function registerAdminToken(userId, token, deviceName) {
+  if (!messaging) throw new Error(setupError || 'Firebase Cloud Messaging is unavailable.');
+  const hash = tokenHash(token);
+  await pool.query(
+    `INSERT INTO admin_push_tokens (user_id, token_hash, token, device_name) VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), token = VALUES(token), device_name = VALUES(device_name)`,
+    [userId, hash, token, deviceName || null],
+  );
+  return hash;
+}
+
+export async function removeAdminToken(userId, token) {
+  await pool.query('DELETE FROM admin_push_tokens WHERE user_id = ? AND token_hash = ?', [userId, tokenHash(token)]);
+}
+
+export async function adminTokenCount(userId) {
+  const [[row]] = await pool.query('SELECT COUNT(*) AS count FROM admin_push_tokens WHERE user_id = ?', [userId]);
+  return Number(row.count);
+}
+
+export async function hasAdminToken(userId, hash) {
+  const [[row]] = await pool.query(
+    'SELECT 1 AS found FROM admin_push_tokens WHERE user_id = ? AND token_hash = ? LIMIT 1',
+    [userId, hash],
+  );
+  return Boolean(row);
+}
+
+function pickupLabel(booking) {
+  const date = booking.pickup_date instanceof Date
+    ? booking.pickup_date.toISOString().slice(0, 10)
+    : String(booking.pickup_date || '').slice(0, 10);
+  const time = String(booking.pickup_time || '').slice(0, 5);
+  return [date, time].filter(Boolean).join(' ');
+}
+
+function bookingPayload(booking) {
+  const details = [
+    booking.reference,
+    [booking.pickup_location, booking.destination].filter(Boolean).join(' → '),
+    pickupLabel(booking),
+  ].filter(Boolean);
+  return {
+    title: 'New Ride Booking!',
+    body: details.join(' · ').slice(0, 900),
+    bookingId: String(booking.id),
+    url: new URL(`/admin/bookings/${booking.id}`, config.clientUrl).toString(),
+  };
+}
+
+const INVALID_TOKEN_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+]);
+
+/** Sends one data-only FCM message per admin device, with a DB idempotency key per booking/device. */
+export async function sendBookingPush(booking) {
+  if (!messaging) return;
+  const [devices] = await pool.query(
+    `SELECT t.id, t.token_hash, t.token
+     FROM admin_push_tokens t JOIN users u ON u.id = t.user_id
+     WHERE u.role = 'ADMIN' AND u.is_active = 1`,
+  );
+  if (!devices.length) return;
+
+  const pending = [];
+  for (const device of devices) {
+    const [insert] = await pool.query(
+      "INSERT IGNORE INTO admin_push_deliveries (booking_id, token_hash, status) VALUES (?, ?, 'SENDING')",
+      [booking.id, device.token_hash],
+    );
+    if (insert.affectedRows === 1) pending.push(device);
+  }
+
+  const payload = bookingPayload(booking);
+  for (let start = 0; start < pending.length; start += 500) {
+    const batch = pending.slice(start, start + 500);
+    try {
+      const response = await messaging.sendEachForMulticast({
+        tokens: batch.map((device) => device.token),
+        data: payload,
+        webpush: { headers: { Urgency: 'high', TTL: '2419200' } },
+      });
+      for (let i = 0; i < response.responses.length; i += 1) {
+        const device = batch[i];
+        const result = response.responses[i];
+        const status = result.success ? 'SENT' : 'FAILED';
+        const code = result.success ? null : (result.error?.code || 'send_failed').slice(0, 100);
+        await pool.query(
+          'UPDATE admin_push_deliveries SET status = ?, error_code = ?, sent_at = IF(? = \'SENT\', CURRENT_TIMESTAMP, NULL) WHERE booking_id = ? AND token_hash = ?',
+          [status, code, status, booking.id, device.token_hash],
+        );
+        if (code && INVALID_TOKEN_CODES.has(code)) {
+          await pool.query('DELETE FROM admin_push_tokens WHERE id = ?', [device.id]);
+        } else if (code) {
+          console.error(`[fcm] booking alert failed booking=${booking.reference} code=${code}`);
+        }
+      }
+    } catch (err) {
+      const code = (err.code || 'send_failed').slice(0, 100);
+      await pool.query(
+        `UPDATE admin_push_deliveries SET status = 'FAILED', error_code = ?
+         WHERE booking_id = ? AND token_hash IN (${batch.map(() => '?').join(',')}) AND status = 'SENDING'`,
+        [code, booking.id, ...batch.map((device) => device.token_hash)],
+      );
+      console.error(`[fcm] booking alert failed booking=${booking.reference} code=${code}`);
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { notFound } from '../utils/AppError.js';
 import * as bookings from '../services/bookingService.js';
 import { sendBookingNotification } from '../services/whatsappService.js';
 import { sendNotificationEmail } from '../services/emailService.js';
+import { sendBookingPush } from '../services/pushService.js';
 
 const CUSTOMER_MESSAGE = 'Your booking has been received. Our team will contact you shortly.';
 
@@ -12,6 +13,7 @@ export const createBooking = asyncHandler(async (req, res) => {
   if (req.body.website) return res.status(201).json({ data: { reference: 'SER-RECEIVED', message: CUSTOMER_MESSAGE } });
 
   const booking = await bookings.createBooking(req.body);
+  sendBookingPush(booking).catch((err) => console.error(`[booking ${booking.reference}] push dispatch failed code=${err.code || 'unknown_error'}`));
 
   // The booking is already saved. Notification problems must never undo it or reach the customer as an error.
   let fallbackLinks = [];
@@ -48,8 +50,9 @@ export const listBookings = asyncHandler(async (req, res) => {
 });
 
 export const unseenCount = asyncHandler(async (_req, res) => {
-  const [[row]] = await pool.query(`SELECT COUNT(*) AS count, MAX(created_at) AS latest FROM bookings WHERE seen_by_admin = 0`);
-  res.json({ data: row });
+  const [[summary]] = await pool.query(`SELECT COUNT(*) AS count, MAX(created_at) AS latest FROM bookings WHERE seen_by_admin = 0`);
+  const [rows] = await pool.query('SELECT id FROM bookings WHERE seen_by_admin = 0 ORDER BY id DESC LIMIT 100');
+  res.json({ data: { ...summary, booking_ids: rows.map((row) => String(row.id)) } });
 });
 
 export const getBooking = asyncHandler(async (req, res) => {

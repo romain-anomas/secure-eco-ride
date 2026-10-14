@@ -55,6 +55,12 @@ export const config = {
     from: env.SMTP_FROM || 'Secure Eco Ride <no-reply@localhost>',
     notifyTo: list(env.NOTIFY_EMAIL_TO),
   },
+  firebase: {
+    projectId: env.FIREBASE_PROJECT_ID || '',
+    serviceAccountJson: env.FIREBASE_SERVICE_ACCOUNT_JSON || '',
+    credentialsPath: env.GOOGLE_APPLICATION_CREDENTIALS || '',
+    useApplicationDefault: env.FIREBASE_USE_APPLICATION_DEFAULT === 'true',
+  },
 };
 
 if (!config.jwt.secret) {

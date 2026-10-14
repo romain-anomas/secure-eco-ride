@@ -6,6 +6,8 @@ const API = process.env.VITE_DEV_API || 'http://localhost:5000';
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Expose the dev UI to phones and other computers on the same LAN.
+    host: '0.0.0.0',
     port: 5173,
     proxy: { '/api': API, '/uploads': API },
   },

@@ -35,13 +35,14 @@ export default function Navbar() {
   }, [open]);
 
   const solid = scrolled || open;
+  const light = scrolled && !open;
   const link = ({ isActive }) =>
-    `relative px-1 py-2 text-sm font-semibold transition-colors ${isActive ? 'text-lime' : 'text-white/85 hover:text-white'}`;
+    `relative px-1 py-2 text-sm font-semibold transition-colors ${isActive ? (light ? 'text-moss' : 'text-lime') : (light ? 'text-night/75 hover:text-night' : 'text-white/85 hover:text-white')}`;
 
   return (
-    <header className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${solid ? 'bg-night shadow-[0_8px_24px_-12px_rgba(0,0,0,.6)]' : 'bg-gradient-to-b from-night/80 to-transparent'}`}>
+    <header className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${light ? 'bg-white/95 shadow-sm backdrop-blur' : solid ? 'bg-night shadow-[0_8px_24px_-12px_rgba(0,0,0,.6)]' : 'bg-gradient-to-b from-night/80 to-transparent'}`}>
       <div className="container-x flex h-16 items-center justify-between lg:h-20">
-        <Logo size={scrolled ? 38 : 44} />
+        <Logo tone={light ? 'dark' : 'light'} size={scrolled ? 38 : 44} />
 
         <nav className="hidden items-center gap-6 xl:gap-7 lg:flex" aria-label="Main">
           {NAV_LINKS.map((l) => (
@@ -51,14 +52,14 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           {primaryPhone && (
-            <a href={tel(primaryPhone)} className="hidden items-center gap-2 text-sm font-bold text-white xl:flex" aria-label={`Call ${primaryPhone}`}>
-              <Phone className="h-4 w-4 text-lime" aria-hidden="true" /> {prettyLocal(primaryPhone)}
+            <a href={tel(primaryPhone)} className={`hidden items-center gap-2 text-sm font-bold xl:flex ${light ? 'text-night' : 'text-white'}`} aria-label={`Call ${primaryPhone}`}>
+              <Phone className={`h-4 w-4 ${light ? 'text-moss' : 'text-lime'}`} aria-hidden="true" /> {prettyLocal(primaryPhone)}
             </a>
           )}
           <Link to="/booking" className="btn btn-primary btn-sm hidden sm:inline-flex">Book a ride</Link>
           <button
             type="button"
-            className="grid h-11 w-11 place-items-center rounded-full border border-white/25 text-white lg:hidden"
+            className={`grid h-11 w-11 place-items-center rounded-full border lg:hidden ${light ? 'border-night/20 text-night' : 'border-white/25 text-white'}`}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             aria-controls="mobile-menu"
@@ -83,7 +84,7 @@ export default function Navbar() {
             <ul className="divide-y divide-white/10">
               {NAV_LINKS.map((l) => (
                 <li key={l.to}>
-                  <NavLink to={l.to} end={l.end} className={({ isActive }) => `block py-4 font-display text-2xl font-extrabold uppercase ${isActive ? 'text-lime' : 'text-white'}`}>
+                  <NavLink to={l.to} end={l.end} className={({ isActive }) => `block rounded-xl px-3 py-3 font-sans text-lg font-semibold transition-colors hover:bg-white/5 sm:text-xl ${isActive ? 'bg-white/10 text-lime' : 'text-white/90'}`}>
                     {l.label}
                   </NavLink>
                 </li>

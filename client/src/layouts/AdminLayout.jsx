@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { get } from '../services/api.js';
 import Logo from '../components/Logo.jsx';
 import { Spinner } from '../components/admin/ui.jsx';
+import { enableBookingSound, playBookingSound, unlockBookingSound } from '../utils/bookingSound.js';
+import { listenForFcmMessages, showFcmNotification } from '../services/firebaseMessaging.js';
+import AdminAlertControls from '../components/admin/AdminAlertControls.jsx';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -28,7 +31,28 @@ export default function AdminLayout() {
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const [banner, setBanner] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('ser_booking_sound') === 'on');
+  const soundEnabledRef = useRef(soundEnabled);
   const last = useRef(null);
+  const polledBookingIds = useRef(new Set());
+  const alertedBookingIds = useRef(new Set());
+
+  useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
+
+  useEffect(() => {
+    if (!soundEnabled) return undefined;
+    let unlocked = false;
+    const unlock = () => {
+      if (unlocked) return;
+      unlockBookingSound().then(() => { unlocked = true; }).catch(() => {});
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [soundEnabled]);
 
   useEffect(() => setOpen(false), [pathname]);
 
@@ -41,7 +65,16 @@ export default function AdminLayout() {
         const { data } = await get('/bookings/unseen-count');
         if (stop) return;
         setUnseen(data.count);
-        if (last.current !== null && data.count > last.current) setBanner(`${data.count - last.current} new booking${data.count - last.current === 1 ? '' : 's'} received`);
+        const newIds = (data.booking_ids || []).filter((id) => !polledBookingIds.current.has(String(id)));
+        if (last.current !== null && newIds.length) {
+          const notAlerted = newIds.filter((id) => !alertedBookingIds.current.has(String(id)));
+          notAlerted.forEach((id) => alertedBookingIds.current.add(String(id)));
+          if (notAlerted.length) {
+            setBanner(`${notAlerted.length} new booking${notAlerted.length === 1 ? '' : 's'} received`);
+            if (soundEnabledRef.current) playBookingSound();
+          }
+        }
+        (data.booking_ids || []).forEach((id) => polledBookingIds.current.add(String(id)));
         last.current = data.count;
       } catch { /* ignore transient errors */ }
     };
@@ -49,6 +82,49 @@ export default function AdminLayout() {
     const t = setInterval(tick, 30000);
     return () => { stop = true; clearInterval(t); };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !isAdmin) return undefined;
+    let stopped = false;
+    let unsubscribe = () => {};
+    listenForFcmMessages((data) => {
+      if (stopped || !data.bookingId || alertedBookingIds.current.has(String(data.bookingId))) return;
+      alertedBookingIds.current.add(String(data.bookingId));
+      showFcmNotification(data).catch((err) => console.error('[admin] could not display booking notification:', err.message));
+      setBanner(`${data.title || 'New Ride Booking!'}${data.body ? ` — ${data.body}` : ''}`);
+      if (soundEnabledRef.current) playBookingSound();
+    }).then((stop) => {
+      if (stopped) stop();
+      else unsubscribe = stop;
+    }).catch((err) => console.error('[admin] foreground push listener unavailable:', err.message));
+    return () => { stopped = true; unsubscribe(); };
+  }, [user, isAdmin]);
+
+  async function toggleSound() {
+    if (soundEnabled) {
+      localStorage.removeItem('ser_booking_sound');
+      setSoundEnabled(false);
+      return;
+    }
+    try {
+      await enableBookingSound();
+      localStorage.setItem('ser_booking_sound', 'on');
+      setSoundEnabled(true);
+    } catch (err) {
+      setBanner(err.message || 'Could not enable the booking sound in this browser.');
+    }
+  }
+
+  async function testSound() {
+    try {
+      await enableBookingSound();
+      if (!soundEnabled) {
+        localStorage.setItem('ser_booking_sound', 'on');
+        setSoundEnabled(true);
+      }
+      setBanner('Booking sound test played.');
+    } catch (err) { setBanner(err.message || 'Could not play the booking sound.'); }
+  }
 
   if (checking) return <div className="grid min-h-screen place-items-center bg-mist"><Spinner label="Checking your session…" /></div>;
   if (!user) return <Navigate to="/admin/login" replace state={{ from: pathname }} />;
@@ -97,6 +173,7 @@ export default function AdminLayout() {
           <button type="button" onClick={() => setBanner('')} aria-label="Dismiss"><X className="h-4 w-4" /></button>
         </div>
       )}
+      {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
       <main className="p-4 lg:p-8"><Outlet /></main>
     </div>
   );

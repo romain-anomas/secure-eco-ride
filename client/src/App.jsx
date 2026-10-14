@@ -58,6 +58,7 @@ export default function App() {
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="bookings" element={<Bookings />} />
+        <Route path="bookings/:id" element={<Bookings />} />
         <Route path="customers" element={<Customers />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="vehicles" element={<AdminOnly><Vehicles /></AdminOnly>} />

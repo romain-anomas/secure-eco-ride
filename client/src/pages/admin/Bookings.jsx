@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Eye, RefreshCw, Search } from 'lucide-react';
 import { get, parseError, patch, post } from '../../services/api.js';
 import useFetch from '../../hooks/useFetch.js';
@@ -9,9 +10,11 @@ import { prettyPhone } from '../../utils/phone.js';
 const TERMINAL = ['COMPLETED', 'CANCELLED'];
 
 export default function Bookings() {
+  const { id: routeId } = useParams();
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({ status: '', date_from: '', date_to: '', q: '' });
   const [page, setPage] = useState(1);
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(() => (routeId ? Number(routeId) : null));
   const [cancelRow, setCancelRow] = useState(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -19,6 +22,13 @@ export default function Bookings() {
   const params = { ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)), page, limit: 25 };
   const { data, meta: rawMeta, loading, error: loadError, reload, setData } = useFetch('/bookings', { params, initial: [] });
   const meta = rawMeta || { total: 0, limit: 25 };
+
+  useEffect(() => { setOpenId(routeId ? Number(routeId) : null); }, [routeId]);
+
+  function closeDetail() {
+    setOpenId(null);
+    if (routeId) navigate('/admin/bookings', { replace: true });
+  }
 
   // refresh every 30 s so new website bookings show up without reloading
   useEffect(() => {
@@ -94,7 +104,7 @@ export default function Bookings() {
         </>
       )}
 
-      {openId && <BookingDetail id={openId} onClose={() => setOpenId(null)} onChanged={reload} />}
+      {openId && <BookingDetail id={openId} onClose={closeDetail} onChanged={reload} />}
       {cancelRow && (
         <Modal title="Cancel this booking?" onClose={() => setCancelRow(null)}>
           <p className="text-night/75"><strong>{cancelRow.reference}</strong> for {cancelRow.customer_name} will be marked as cancelled. Remember to let the customer know.</p>

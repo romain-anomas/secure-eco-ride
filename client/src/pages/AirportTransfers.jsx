@@ -3,6 +3,7 @@ import useSeo from '../hooks/useSeo.js';
 import PageHero from '../components/PageHero.jsx';
 import BookingForm from '../components/BookingForm.jsx';
 import ContactStrip from '../components/ContactStrip.jsx';
+import { STOCK_PHOTOS } from '../utils/images.js';
 
 const POINTS = [
   [CalendarClock, 'Scheduled transportation', 'Choose your pickup date and time and we plan the ride around your flight.'],
@@ -15,7 +16,7 @@ export default function AirportTransfers() {
   useSeo({ title: 'Airport Transfers | Secure Eco Ride', description: 'Reliable airport pickup and drop-off with professional drivers and scheduled transportation. Book your airport transfer with Secure Eco Ride.' });
   return (
     <>
-      <PageHero title="Airport transfers" intro="Reliable airport pickup and drop-off services with professional drivers and scheduled transportation." />
+      <PageHero title="Airport transfers" intro="Reliable airport pickup and drop-off services with professional drivers and scheduled transportation." image={STOCK_PHOTOS.airportTerminal} imageAlt="Airport terminal at sunset" />
       <section className="section bg-mist">
         <div className="container-x grid gap-10 lg:grid-cols-[1fr_1.25fr]">
           <div>

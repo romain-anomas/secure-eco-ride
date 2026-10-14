@@ -12,6 +12,7 @@ import * as auth from '../controllers/authController.js';
 import * as bookings from '../controllers/bookingController.js';
 import * as misc from '../controllers/miscController.js';
 import * as wa from '../controllers/whatsappController.js';
+import * as push from '../controllers/pushController.js';
 
 const router = Router();
 const id = validate(idParam, 'params');
@@ -27,6 +28,9 @@ router.post('/auth/change-password', authenticate, validate(S.changePasswordSche
 router.post('/bookings', bookingLimiter, validate(S.createBookingSchema), bookings.createBooking);
 router.get('/bookings', authenticate, staffOrAdmin, validate(S.listBookingsQuery, 'query'), bookings.listBookings);
 router.get('/bookings/unseen-count', authenticate, staffOrAdmin, bookings.unseenCount);
+router.get('/push/status', authenticate, adminOnly, push.status);
+router.post('/push/devices', authenticate, adminOnly, push.registerDevice);
+router.delete('/push/devices', authenticate, adminOnly, push.removeDevice);
 router.get('/bookings/:id', authenticate, staffOrAdmin, id, bookings.getBooking);
 router.patch('/bookings/:id/status', authenticate, staffOrAdmin, id, validate(S.statusSchema), bookings.updateStatus);
 router.patch('/bookings/:id/assign', authenticate, staffOrAdmin, id, validate(S.assignSchema), bookings.assignDriver);

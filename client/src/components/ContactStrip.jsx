@@ -12,7 +12,7 @@ export default function ContactStrip({ heading = 'Book your ride today!' }) {
       <Leaf className="pointer-events-none absolute -left-4 bottom-4 hidden w-20 -rotate-[24deg] opacity-60 sm:block" />
       <Leaf className="pointer-events-none absolute right-6 top-6 hidden w-14 rotate-[30deg] opacity-50 sm:block" />
       <div className="container-x relative text-center">
-        <h2 id="book-today-title" className="h-display text-4xl sm:text-5xl lg:text-6xl">{heading}</h2>
+        <h2 id="book-today-title" className="h-display">{heading}</h2>
         <div className="rule-green mx-auto mt-5" />
         <ul className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
           {phones.map((p) => (
