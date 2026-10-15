@@ -1,17 +1,29 @@
-// Mirrors server/src/utils/phone.js so numbers are always displayed / linked correctly.
+// Convert a national number plus the selected calling code to international digits.
+import { PHONE_COUNTRIES } from './phoneCountries.js';
+import { phoneLengthRange } from './phoneLengthRules.js';
+
+const hasNationalLength = (digits, countryCode) => {
+  const national = digits.startsWith(countryCode) ? digits.slice(countryCode.length) : digits;
+  const [min, max] = phoneLengthRange(countryCode);
+  return national.length >= min && national.length <= max;
+};
+
 export function normalizePhone(input, countryCode = '250') {
   if (input == null) return null;
   const raw = String(input).trim();
   const hasPlus = raw.startsWith('+');
   let s = raw.replace(/\D/g, '');
   if (!s) return null;
-  const ok = (v) => v.length >= 8 && v.length <= 15;
-  if (hasPlus) return ok(s) ? s : null;
-  if (s.startsWith('00')) { s = s.slice(2); return ok(s) ? s : null; }
-  if (s.startsWith('0')) return s.length === 10 ? countryCode + s.slice(1) : null;
-  if (s.startsWith(countryCode) && s.length === countryCode.length + 9) return s;
-  if (s.length === 9) return countryCode + s;
-  return ok(s) ? s : null;
+  if (hasPlus || s.startsWith('00')) {
+    if (!hasPlus) s = s.slice(2);
+    const country = PHONE_COUNTRIES.map(({ code }) => code).sort((a, b) => b.length - a.length).find((code) => s.startsWith(code));
+    return country && hasNationalLength(s, country) ? s : null;
+  }
+  if (s.startsWith('0')) s = s.slice(1);
+  else if (s.startsWith(countryCode) && hasNationalLength(s, countryCode)) return s;
+  else if (s.length > phoneLengthRange(countryCode)[1] && PHONE_COUNTRIES.some(({ code }) => s.startsWith(code))) return null;
+  const international = countryCode + s;
+  return hasNationalLength(international, countryCode) ? international : null;
 }
 
 /** Numbers stored in settings ("0793157373") -> international digits ("250793157373"). */

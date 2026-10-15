@@ -21,7 +21,7 @@ const BOOKING_SELECT = `
 
 function withWhatsAppSummary(row) {
   if (!row) return row;
-  const { wa_sent: sent, wa_failed: failed, wa_skipped: skipped, ...rest } = row;
+  const { wa_sent: sent, wa_failed: failed, wa_skipped: skipped, request_key: _requestKey, ...rest } = row;
   let whatsapp_status = 'NONE';
   if (failed && sent) whatsapp_status = 'PARTIAL';
   else if (failed) whatsapp_status = 'FAILED';
@@ -75,6 +75,7 @@ export async function createBooking(data) {
 
   const phone = normalizePhone(data.phone, config.countryCode);
 
+  try {
   const id = await withTransaction(async (conn) => {
     const [cust] = await conn.query(
       `INSERT INTO customers (name, phone, email) VALUES (?, ?, ?)
@@ -84,14 +85,16 @@ export async function createBooking(data) {
     const reference = await nextReference(conn);
     const [res] = await conn.query(
       `INSERT INTO bookings
-        (reference, customer_id, service_id, service_name, pickup_location, destination, pickup_date, pickup_time,
-         passengers, vehicle_type, notes, flight_number, airport_direction, airport_name, luggage_count)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        (reference, request_key, customer_id, service_id, service_name, pickup_location, destination, pickup_date, pickup_time,
+         passengers, vehicle_type, notes, flight_number, airport_direction, airport_name, luggage_count,
+         pickup_latitude, pickup_longitude, destination_latitude, destination_longitude)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        reference, cust.insertId, service.id, service.name, data.pickup_location, data.destination,
+        reference, data.request_key || null, cust.insertId, service.id, service.name, data.pickup_location, data.destination,
         data.pickup_date, `${data.pickup_time}:00`, data.passengers, data.vehicle_type || null, data.notes || null,
         data.flight_number || null, data.airport_direction || null, data.airport_name || null,
-        data.luggage_count ?? null,
+        data.luggage_count ?? null, data.pickup_latitude ?? null, data.pickup_longitude ?? null,
+        data.destination_latitude ?? null, data.destination_longitude ?? null,
       ],
     );
     await conn.query(
@@ -101,7 +104,13 @@ export async function createBooking(data) {
     return res.insertId;
   });
 
-  return getBookingById(id);
+  return { booking: await getBookingById(id), created: true };
+  } catch (err) {
+    if (err.code !== 'ER_DUP_ENTRY' || !data.request_key) throw err;
+    const [[existing]] = await pool.query('SELECT id FROM bookings WHERE request_key = ?', [data.request_key]);
+    if (!existing) throw err;
+    return { booking: await getBookingById(existing.id), created: false };
+  }
 }
 
 async function refreshDriverStatus(conn, driverId) {
@@ -115,7 +124,7 @@ async function refreshDriverStatus(conn, driverId) {
 }
 
 export async function changeStatus(id, status, userId, note) {
-  await withTransaction(async (conn) => {
+  const previousStatus = await withTransaction(async (conn) => {
     const [[current]] = await conn.query('SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE', [id]);
     if (!current) throw badRequest('Booking not found');
     if (status === 'ASSIGNED' && !current.driver_id) throw badRequest('Assign a driver before setting the status to ASSIGNED.');
@@ -127,8 +136,9 @@ export async function changeStatus(id, status, userId, note) {
       );
     }
     await refreshDriverStatus(conn, current.driver_id);
+    return current.status;
   });
-  return getBookingById(id);
+  return { booking: await getBookingById(id), previousStatus };
 }
 
 export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
@@ -137,9 +147,21 @@ export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
     if (!booking) throw badRequest('Booking not found');
     if (['COMPLETED', 'CANCELLED'].includes(booking.status)) throw badRequest(`A ${booking.status.toLowerCase()} booking cannot be reassigned.`);
 
-    const [[driver]] = await conn.query('SELECT id, vehicle_id, is_active FROM drivers WHERE id = ?', [driver_id]);
+    const [[driver]] = await conn.query('SELECT id, vehicle_id, is_active, status FROM drivers WHERE id = ? FOR UPDATE', [driver_id]);
     if (!driver || !driver.is_active) throw badRequest('Choose an active driver.');
+    const [conflicts] = await conn.query(
+      `SELECT id FROM bookings WHERE driver_id = ? AND id <> ? AND status IN (${ACTIVE_DRIVER_STATUSES.map(() => '?').join(',')}) LIMIT 1`,
+      [driver_id, id, ...ACTIVE_DRIVER_STATUSES],
+    );
+    if (conflicts.length) throw badRequest('This driver already has an active assignment. Choose another driver.');
     const vehicleId = vehicle_id ?? driver.vehicle_id ?? null;
+
+    if (booking.driver_id !== driver_id) {
+      await conn.query(
+        'INSERT INTO booking_assignment_history (booking_id, previous_driver_id, driver_id, assigned_by) VALUES (?,?,?,?)',
+        [id, booking.driver_id, driver_id, userId],
+      );
+    }
 
     await conn.query('UPDATE bookings SET driver_id = ?, vehicle_id = ?, seen_by_admin = 1 WHERE id = ?', [driver_id, vehicleId, id]);
     if (['PENDING', 'CONFIRMED'].includes(booking.status)) {
@@ -155,9 +177,62 @@ export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
   return getBookingById(id);
 }
 
+/** Atomically saves the selected driver and status after the admin explicitly presses Send. */
+export async function dispatchBookingUpdate(id, { driver_id, status, note }, userId) {
+  const previousStatus = await withTransaction(async (conn) => {
+    const [[booking]] = await conn.query('SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE', [id]);
+    if (!booking) throw badRequest('Booking not found');
+    if (['COMPLETED', 'CANCELLED'].includes(booking.status)) throw badRequest('This booking is closed and cannot be changed.');
+
+    const [[driver]] = await conn.query('SELECT id, vehicle_id, is_active, status FROM drivers WHERE id = ? FOR UPDATE', [driver_id]);
+    if (!driver || !driver.is_active) throw badRequest('Choose an active driver.');
+    if (ACTIVE_DRIVER_STATUSES.includes(status) && driver.status === 'OFFLINE') throw badRequest('This driver is unavailable. Choose an available driver.');
+    if (ACTIVE_DRIVER_STATUSES.includes(status)) {
+      const [conflicts] = await conn.query(
+        `SELECT id FROM bookings WHERE driver_id = ? AND id <> ? AND status IN (${ACTIVE_DRIVER_STATUSES.map(() => '?').join(',')}) LIMIT 1`,
+        [driver_id, id, ...ACTIVE_DRIVER_STATUSES],
+      );
+      if (conflicts.length) throw badRequest('This driver already has an active assignment. Choose another driver.');
+    }
+
+    if (booking.driver_id !== driver_id) {
+      await conn.query(
+        'INSERT INTO booking_assignment_history (booking_id, previous_driver_id, driver_id, assigned_by) VALUES (?,?,?,?)',
+        [id, booking.driver_id, driver_id, userId],
+      );
+    }
+    await conn.query(
+      'UPDATE bookings SET driver_id = ?, vehicle_id = ?, status = ?, seen_by_admin = 1 WHERE id = ?',
+      [driver_id, driver.vehicle_id, status, id],
+    );
+    if (booking.status !== status) {
+      await conn.query(
+        'INSERT INTO booking_status_history (booking_id, from_status, to_status, changed_by, note) VALUES (?,?,?,?,?)',
+        [id, booking.status, status, userId, note || null],
+      );
+    }
+    await refreshDriverStatus(conn, driver_id);
+    if (booking.driver_id && booking.driver_id !== driver_id) await refreshDriverStatus(conn, booking.driver_id);
+    return booking.status;
+  });
+  return { booking: await getBookingById(id), previousStatus };
+}
+
 export async function getStatusHistory(id) {
   const [rows] = await pool.query(
     `SELECT h.*, u.name AS changed_by_name FROM booking_status_history h
      LEFT JOIN users u ON u.id = h.changed_by WHERE h.booking_id = ? ORDER BY h.id ASC`, [id]);
+  return rows;
+}
+
+export async function getAssignmentHistory(id) {
+  const [rows] = await pool.query(
+    `SELECT h.id, h.assigned_at, previous.name AS previous_driver_name, current.name AS driver_name,
+            u.name AS assigned_by_name
+     FROM booking_assignment_history h
+     LEFT JOIN drivers previous ON previous.id = h.previous_driver_id
+     LEFT JOIN drivers current ON current.id = h.driver_id
+     LEFT JOIN users u ON u.id = h.assigned_by
+     WHERE h.booking_id = ? ORDER BY h.id ASC`, [id]);
   return rows;
 }

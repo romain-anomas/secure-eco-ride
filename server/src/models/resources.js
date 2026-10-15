@@ -16,7 +16,7 @@ export const Vehicles = createCrud({
 export const Drivers = createCrud({
   table: 'drivers',
   fields: ['name', 'phone', 'license_number', 'status', 'vehicle_id', 'is_active'],
-  selectSql: 'SELECT t.*, v.name AS vehicle_name, v.plate_number AS vehicle_plate FROM drivers t LEFT JOIN vehicles v ON v.id = t.vehicle_id',
+  selectSql: 'SELECT t.*, v.name AS vehicle_name, v.plate_number AS vehicle_plate, u.email AS account_email, u.is_active AS account_active FROM drivers t LEFT JOIN vehicles v ON v.id = t.vehicle_id LEFT JOIN users u ON u.id = t.user_id',
   orderBy: 't.name ASC',
 });
 

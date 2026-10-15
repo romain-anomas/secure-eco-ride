@@ -19,7 +19,7 @@ api.interceptors.response.use(
     // Expired admin session -> back to login
     if (err.response?.status === 401 && getToken() && !err.config.url.includes('/auth/login')) {
       setToken(null);
-      if (location.pathname.startsWith('/admin') && location.pathname !== '/admin/login') location.assign('/admin/login');
+      if ((location.pathname.startsWith('/admin') || location.pathname.startsWith('/driver')) && location.pathname !== '/admin/login') location.assign('/admin/login');
     }
     return Promise.reject(err);
   },

@@ -280,7 +280,7 @@ deploying.
 
 ```bash
 cd client
-SITE_URL=https://finding-you-ride.vercel.app npm run build     # writes sitemap.xml/robots.txt, then builds to client/dist
+SITE_URL=https://secure-eco-ride.vercel.app npm run build     # writes sitemap.xml/robots.txt, then builds to client/dist
 ```
 
 Two deployment shapes are supported:
@@ -355,3 +355,42 @@ publicly is either the four services and phone numbers from the business card, o
 content an administrator explicitly enters in the dashboard. Empty sections (fleet,
 testimonials, pricing) show an honest "not yet available" state rather than placeholder
 fabrications.
+
+## Booking maps, assignment audit, and booking email
+
+Booking requests can now include optional pickup and destination pins. The full booking form asks for browser location only after the customer presses **Use My Current Location**; customers can also click or drag the pins. Addresses remain the authoritative text fields. The map uses Leaflet with the standard OpenStreetMap tile service and attribution. OpenStreetMap's community tile servers have capacity and usage policies and are not an unlimited or guaranteed production map service; for sustained high traffic, select a compliant tile provider and update `BookingMap.jsx` and `BookingLocationMap.jsx`. No geocoding service is used.
+
+Booking creation and every admin status change use email rather than WhatsApp. An admin status change emails the customer and configured admin inbox using SMTP. The booking detail panel reports delivery state and has no WhatsApp send controls for booking messages. New bookings require a valid email address so the customer can receive status updates. Older bookings without an email remain valid, but need the customer's email added before customer updates can be delivered. Admin email requires `ADMIN_NOTIFICATION_EMAIL` (or legacy `NOTIFY_EMAIL_TO`) in addition to SMTP settings.
+
+The admin booking workflow keeps incoming requests `PENDING`. Open **Review & send**, inspect the booking, select an active driver and the passenger-facing status, then press **Save assignment & send**. The API saves driver and status together before sending email to both recipients. The email includes the assigned driver's contact and vehicle details. On phones, bookings use stacked cards; wider screens use the full table. The protected endpoint is `POST /api/bookings/:id/send-update` with `{ "driver_id": 1, "status": "CONFIRMED", "note": "Optional history note" }`.
+
+Admins can create a login for an active driver from **Drivers**. Give the driver the email and temporary password entered there. Drivers sign in at `/admin/login` and are sent to the mobile-friendly `/driver` portal, where they can mark themselves available or unavailable and see their own assigned rides and passenger contact details. A driver with an active ride remains busy. Driver accounts can change their password after sign-in.
+
+### Database rollout
+
+1. Take a verified backup of the production database and confirm it can be restored.
+2. From a MySQL client connected to the Render production database, apply `database/migrations/002_booking_coordinates.sql`, `database/migrations/003_driver_assignment_history.sql`, and `database/migrations/004_driver_accounts.sql` in order. The last migration adds the restricted driver role and a nullable link from driver profiles to login accounts.
+3. Deploy the backend and frontend. Existing rows without coordinates continue to appear with text addresses and a no-coordinates note.
+4. To roll back application code, redeploy the prior versions. Keep the additive columns and audit table during rollback; the prior code ignores them. Do not drop data-bearing schema objects as part of routine rollback.
+
+Never run `npm run db:init` against production: it is the full schema/bootstrap path. Run migrations only after the backup, against the remote production DB host supplied to the Render service. `DB_HOST` must be the remote database hostname, not `localhost` or `127.0.0.1`. This repository cannot verify the Render database host or reachability from local development.
+
+### Render and Vercel values
+
+Set these in the Render API service environment (never use `VITE_` for secrets):
+
+- `NODE_ENV=production`, `PORT` supplied by Render, and `TRUST_PROXY=1`.
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` for the remotely hosted MySQL service.
+- `JWT_SECRET` (at least 32 random characters), `FRONTEND_URL=https://secure-eco-ride.vercel.app`, and `CORS_ORIGINS=https://secure-eco-ride.vercel.app` (add an approved preview/development origin only when needed).
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, and `ADMIN_NOTIFICATION_EMAIL` for admin booking email. `EMAIL_FROM` and `ADMIN_NOTIFICATION_EMAIL` are aliases supported by this server; older `SMTP_FROM` and `NOTIFY_EMAIL_TO` remain supported.
+- Existing WhatsApp and Firebase variables only if those integrations are already configured. Keep all provider credentials in Render secrets.
+
+Use Render's production start command `npm start` from the `server` directory (it runs `node src/server.js`, not the watch server). On Vercel set `VITE_API_URL=https://secure-eco-ride.onrender.com/api` and `SITE_URL=https://secure-eco-ride.vercel.app`; redeploy after changing build variables. Keep the Vercel site and Render API on HTTPS. Socket.IO is not added in this stage.
+
+### Safe SMTP test
+
+After setting the SMTP variables in Render, sign in to the admin dashboard and use an authenticated admin session to call `POST https://secure-eco-ride.onrender.com/api/email/test` with `Authorization: Bearer <admin-token>`. The route sends a fixed test message only to `ADMIN_NOTIFICATION_EMAIL` and is admin-only. A `200` response means the SMTP relay accepted the message; check the recipient inbox and spam folder for actual delivery. A `503` response means configuration or delivery failed; inspect Render logs without printing secrets. SMTP failures are logged and never undo a saved booking.
+
+### Scope and limitations
+
+Admin assignment already existed and remains restricted to staff/admin. New assignment changes receive an audit record and an active booking cannot be assigned to a driver who has another active booking. Driver accounts and a driver dashboard are not present in this application. Customer accounts/booking verification are also absent, so this release does not start or store continuous customer/driver tracking, expose live locations, or add sockets. A public booking reference alone is not authorization to view location data. Add authenticated customer and driver identity before implementing live tracking.

@@ -14,9 +14,10 @@ async function userFromRequest(req) {
   } catch {
     return null;
   }
-  const [rows] = await pool.query('SELECT id, name, email, role, is_active FROM users WHERE id = ?', [payload.sub]);
+  const [rows] = await pool.query(`SELECT u.id, u.name, u.email, u.role, u.is_active, d.id AS driver_id, d.is_active AS driver_active
+    FROM users u LEFT JOIN drivers d ON d.user_id = u.id WHERE u.id = ?`, [payload.sub]);
   const user = rows[0];
-  return user && user.is_active ? user : null;
+  return user && user.is_active && (user.role !== 'DRIVER' || (user.driver_id && user.driver_active)) ? user : null;
 }
 
 /** Requires a valid token. */
@@ -41,3 +42,4 @@ export const requireRole = (...roles) => (req, _res, next) => {
 
 export const adminOnly = requireRole('ADMIN');
 export const staffOrAdmin = requireRole('ADMIN', 'STAFF');
+export const driverOnly = requireRole('DRIVER');

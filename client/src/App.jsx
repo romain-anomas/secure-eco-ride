@@ -18,6 +18,8 @@ const Privacy = lazy(() => import('./pages/Legal.jsx').then((m) => ({ default: m
 const Terms = lazy(() => import('./pages/Legal.jsx').then((m) => ({ default: m.Terms })));
 
 const Login = lazy(() => import('./pages/admin/Login.jsx'));
+const DriverLayout = lazy(() => import('./layouts/DriverLayout.jsx'));
+const DriverDashboard = lazy(() => import('./pages/DriverDashboard.jsx'));
 const Dashboard = lazy(() => import('./pages/admin/Dashboard.jsx'));
 const Bookings = lazy(() => import('./pages/admin/Bookings.jsx'));
 const Customers = lazy(() => import('./pages/admin/Customers.jsx'));
@@ -55,6 +57,7 @@ export default function App() {
       </Route>
 
       <Route path="admin/login" element={<Login />} />
+      <Route path="driver" element={<DriverLayout />}><Route index element={<DriverDashboard />} /></Route>
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="bookings" element={<Bookings />} />

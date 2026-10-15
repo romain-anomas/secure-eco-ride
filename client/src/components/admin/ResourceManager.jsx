@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
 import { api, del, get, parseError, patch, post } from '../../services/api.js';
+import { normalizePhone } from '../../utils/phone.js';
+import PhoneInput from '../PhoneInput.jsx';
+import { DEFAULT_PHONE_COUNTRY, splitStoredPhone } from '../../utils/phoneCountries.js';
 import useFetch from '../../hooks/useFetch.js';
 import { Empty, ErrorBox, Field, Modal, PageHeader, Spinner, TableWrap } from './ui.jsx';
 
@@ -10,7 +13,7 @@ import { Empty, ErrorBox, Field, Modal, PageHeader, Spinner, TableWrap } from '.
  *            options?: [{value,label}], optionsFrom?: { endpoint, label(row), params? }, required?, hint?, default?, list?: false }]
  * columns: [{ header, render(row) }]
  */
-export default function ResourceManager({ title, subtitle, endpoint, listParams, columns, fields, canDelete = true, canCreate = true, addLabel = 'Add', empty = 'Nothing here yet.', itemName = 'item' }) {
+export default function ResourceManager({ title, subtitle, endpoint, listParams, columns, fields, canDelete = true, canCreate = true, addLabel = 'Add', empty = 'Nothing here yet.', itemName = 'item', renderRowAction }) {
   const { data, loading, error, reload } = useFetch(endpoint, { params: listParams, initial: [] });
   const [editing, setEditing] = useState(null); // null | 'new' | row
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -39,6 +42,7 @@ export default function ResourceManager({ title, subtitle, endpoint, listParams,
                 {columns.map((c) => <td key={c.header} className="td">{c.render(row)}</td>)}
                 <td className="td text-right">
                   <div className="flex justify-end gap-1.5">
+                    {renderRowAction?.(row, { reload, setNotice, setActionError })}
                     <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 hover:border-leaf" onClick={() => { setNotice(''); setEditing(row); }} aria-label={`Edit ${itemName}`}><Pencil className="h-4 w-4" /></button>
                     {canDelete && <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 text-red-600 hover:border-red-500" onClick={() => setConfirmDelete(row)} aria-label={`Delete ${itemName}`}><Trash2 className="h-4 w-4" /></button>}
                   </div>
@@ -68,6 +72,7 @@ export default function ResourceManager({ title, subtitle, endpoint, listParams,
 
 function initialValue(f, row) {
   const v = row ? row[f.name] : f.default;
+  if (f.type === 'phone' && row?.[f.name]) return splitStoredPhone(row[f.name]).nationalNumber;
   if (f.type === 'checkbox') return row ? Boolean(v) : v ?? true;
   if (f.type === 'features') return Array.isArray(v) ? v.join('\n') : '';
   if (f.type === 'password') return '';
@@ -76,6 +81,7 @@ function initialValue(f, row) {
 
 function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.name, initialValue(f, row)])));
+  const [phoneCountryCode, setPhoneCountryCode] = useState(() => row?.phone ? splitStoredPhone(row.phone).countryCode : DEFAULT_PHONE_COUNTRY);
   const [dyn, setDyn] = useState({});
   const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
@@ -102,16 +108,35 @@ function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
 
   async function submit(ev) {
     ev.preventDefault();
-    setBusy(true); setError('');
+    setError('');
     const payload = {};
+    const fieldErrors = {};
     for (const f of fields) {
       let v = values[f.name];
+      if (f.required && (v === '' || v === undefined || v === null)) fieldErrors[f.name] = `${f.label} is required`;
       if (f.type === 'password' && !v) continue;
+      if (f.type === 'phone') {
+        const normalized = normalizePhone(v, phoneCountryCode);
+        if (!normalized && (f.required || v)) fieldErrors[f.name] = 'Enter a valid phone number for the selected country';
+        else payload[f.name] = normalized;
+        continue;
+      }
       if (['number', 'money'].includes(f.type)) v = v === '' ? null : Number(v);
+      if (['number', 'money'].includes(f.type) && v !== null) {
+        if (!Number.isFinite(v) || (f.type === 'number' && !Number.isInteger(v))) fieldErrors[f.name] = 'Enter a valid number';
+        else if ((f.min ?? (f.type === 'money' ? 0 : undefined)) !== undefined && v < (f.min ?? 0)) fieldErrors[f.name] = `Enter a value of at least ${f.min ?? 0}`;
+        else if ((f.max ?? (f.type === 'money' ? 1_000_000_000 : undefined)) !== undefined && v > (f.max ?? 1_000_000_000)) fieldErrors[f.name] = `Enter a value no greater than ${f.max ?? 1_000_000_000}`;
+      }
       if (f.type === 'features') v = String(v).split(/\n|,/).map((s) => s.trim()).filter(Boolean);
       if (f.type === 'select' && f.numeric) v = v === '' ? null : Number(v);
       payload[f.name] = v;
     }
+    if (Object.keys(fieldErrors).length) {
+      setErrors(fieldErrors);
+      setError('Please correct the highlighted fields.');
+      return;
+    }
+    setBusy(true);
     try {
       if (row) await patch(`${endpoint}/${row.id}`, payload); else await post(endpoint, payload);
       onSaved();
@@ -126,6 +151,14 @@ function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
             const err = errors[f.name];
             const cls = `input ${err ? 'input-error' : ''}`;
             const wide = ['textarea', 'features', 'image'].includes(f.type) || f.wide ? 'sm:col-span-2' : '';
+            if (f.type === 'phone') {
+              return <Field key={f.name} id={`resource-${f.name}`} label={`${f.label}${f.required ? ' *' : ''}`} hint={f.hint} error={err} className={wide}>
+                <PhoneInput id={`resource-${f.name}`} value={values[f.name]} countryCode={phoneCountryCode}
+                  onCountryCodeChange={setPhoneCountryCode}
+                  onChange={(v) => { setValues((s) => ({ ...s, [f.name]: v })); setErrors((e) => ({ ...e, [f.name]: undefined })); }}
+                  error={err} required={f.required} placeholder="e.g. 793 157 373" />
+              </Field>;
+            }
             if (f.type === 'checkbox') {
               return (
                 <label key={f.name} className={`flex items-center gap-3 rounded-xl border border-night/15 px-4 py-3 ${wide}`}>
@@ -151,7 +184,7 @@ function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
                         <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" onChange={(e) => upload(f.name, e.target.files?.[0])} /></label>
                       {values[f.name] && <button type="button" className="text-sm font-semibold text-red-600" onClick={() => set(f.name, '')}>Remove</button>}
                     </div>
-                  ) : <input className={cls} type={{ number: 'number', money: 'number', password: 'password', email: 'email', tel: 'tel' }[f.type] || 'text'} step={f.type === 'money' ? '0.01' : undefined} min={f.type === 'money' ? 0 : undefined}
+                  ) : <input className={cls} type={{ number: 'number', money: 'number', password: 'password', email: 'email', tel: 'tel' }[f.type] || 'text'} step={f.step ?? (f.type === 'money' ? '0.01' : f.type === 'number' ? '1' : undefined)} min={f.min ?? (f.type === 'money' ? 0 : undefined)} max={f.max ?? (f.type === 'money' ? 1_000_000_000 : undefined)}
                     value={values[f.name]} onChange={(e) => set(f.name, e.target.value)} autoComplete={f.type === 'password' ? 'new-password' : 'off'} />}
               </Field>
             );

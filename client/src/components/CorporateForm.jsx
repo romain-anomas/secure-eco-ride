@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { post, parseError } from '../services/api.js';
+import { normalizePhone } from '../utils/phone.js';
+import PhoneInput from './PhoneInput.jsx';
+import { DEFAULT_PHONE_COUNTRY } from '../utils/phoneCountries.js';
 
 const EMPTY = { name: '', company: '', phone: '', email: '', message: '', website: '' };
 
 export default function CorporateForm() {
   const [form, setForm] = useState(EMPTY);
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -15,9 +19,13 @@ export default function CorporateForm() {
   async function submit(ev) {
     ev.preventDefault();
     setError('');
+    if (form.phone.trim() && !normalizePhone(form.phone, phoneCountryCode)) {
+      setErrors((e) => ({ ...e, phone: 'Enter a valid phone number for the selected country' }));
+      return;
+    }
     setBusy(true);
     try {
-      const payload = { ...form, type: 'CORPORATE' };
+      const payload = { ...form, phone: form.phone.trim() ? normalizePhone(form.phone, phoneCountryCode) : '', type: 'CORPORATE' };
       Object.keys(payload).forEach((k) => payload[k] === '' && delete payload[k]);
       const res = await post('/contact', payload);
       setDone(res.data.message);
@@ -49,7 +57,7 @@ export default function CorporateForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label htmlFor="cf-name" className="label">Contact person</label><input id="cf-name" className={cls('name')} value={form.name} onChange={set('name')} autoComplete="name" required />{errors.name && <p className="field-error">{errors.name}</p>}</div>
         <div><label htmlFor="cf-company" className="label">Company / organisation</label><input id="cf-company" className={cls('company')} value={form.company} onChange={set('company')} autoComplete="organization" />{errors.company && <p className="field-error">{errors.company}</p>}</div>
-        <div><label htmlFor="cf-phone" className="label">Phone</label><input id="cf-phone" type="tel" inputMode="tel" className={cls('phone')} value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="07XX XXX XXX" />{errors.phone && <p className="field-error">{errors.phone}</p>}</div>
+        <div><label htmlFor="cf-phone" className="label">Phone</label><PhoneInput id="cf-phone" value={form.phone} onChange={(value) => { setForm((f) => ({ ...f, phone: value })); setErrors((e) => ({ ...e, phone: undefined })); }} countryCode={phoneCountryCode} onCountryCodeChange={(value) => { setPhoneCountryCode(value); setErrors((e) => ({ ...e, phone: undefined })); }} error={errors.phone} placeholder="e.g. 793 157 373" />{errors.phone && <p id="cf-phone-error" className="field-error">{errors.phone}</p>}</div>
         <div><label htmlFor="cf-email" className="label">Email</label><input id="cf-email" type="email" className={cls('email')} value={form.email} onChange={set('email')} autoComplete="email" />{errors.email && <p className="field-error">{errors.email}</p>}</div>
         <div className="sm:col-span-2"><label htmlFor="cf-message" className="label">What do you need?</label><textarea id="cf-message" rows={4} className={cls('message')} value={form.message} onChange={set('message')} placeholder="Regular staff transport, hotel guests, an event, executive travel…" required />{errors.message && <p className="field-error">{errors.message}</p>}</div>
       </div>

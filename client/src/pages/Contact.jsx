@@ -5,12 +5,15 @@ import useSeo from '../hooks/useSeo.js';
 import { post, parseError } from '../services/api.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import PageHero from '../components/PageHero.jsx';
-import { prettyLocal } from '../utils/phone.js';
+import { normalizePhone, prettyLocal } from '../utils/phone.js';
+import PhoneInput from '../components/PhoneInput.jsx';
+import { DEFAULT_PHONE_COUNTRY } from '../utils/phoneCountries.js';
 
 const EMPTY = { name: '', phone: '', email: '', message: '', website: '' };
 
 function ContactForm() {
   const [form, setForm] = useState(EMPTY);
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_PHONE_COUNTRY);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,9 +22,14 @@ function ContactForm() {
 
   async function submit(ev) {
     ev.preventDefault();
-    setError(''); setBusy(true);
+    setError('');
+    if (form.phone.trim() && !normalizePhone(form.phone, phoneCountryCode)) {
+      setErrors((e) => ({ ...e, phone: 'Enter a valid phone number for the selected country' }));
+      return;
+    }
+    setBusy(true);
     try {
-      const payload = { ...form, type: 'GENERAL' };
+      const payload = { ...form, phone: form.phone.trim() ? normalizePhone(form.phone, phoneCountryCode) : '', type: 'GENERAL' };
       Object.keys(payload).forEach((k) => payload[k] === '' && delete payload[k]);
       const res = await post('/contact', payload);
       setDone(res.data.message); setForm(EMPTY);
@@ -43,7 +51,7 @@ function ContactForm() {
       <div className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true"><label>Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label></div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className="label" htmlFor="c-name">Your name</label><input id="c-name" className={cls('name')} value={form.name} onChange={set('name')} autoComplete="name" required />{errors.name && <p className="field-error">{errors.name}</p>}</div>
-        <div><label className="label" htmlFor="c-phone">Phone</label><input id="c-phone" type="tel" inputMode="tel" className={cls('phone')} value={form.phone} onChange={set('phone')} autoComplete="tel" placeholder="07XX XXX XXX" />{errors.phone && <p className="field-error">{errors.phone}</p>}</div>
+        <div><label className="label" htmlFor="c-phone">Phone</label><PhoneInput id="c-phone" value={form.phone} onChange={(value) => { setForm((f) => ({ ...f, phone: value })); setErrors((e) => ({ ...e, phone: undefined })); }} countryCode={phoneCountryCode} onCountryCodeChange={(value) => { setPhoneCountryCode(value); setErrors((e) => ({ ...e, phone: undefined })); }} error={errors.phone} placeholder="e.g. 793 157 373" />{errors.phone && <p id="c-phone-error" className="field-error">{errors.phone}</p>}</div>
         <div className="sm:col-span-2"><label className="label" htmlFor="c-email">Email</label><input id="c-email" type="email" className={cls('email')} value={form.email} onChange={set('email')} autoComplete="email" />{errors.email && <p className="field-error">{errors.email}</p>}</div>
         <div className="sm:col-span-2"><label className="label" htmlFor="c-msg">Message</label><textarea id="c-msg" rows={5} className={cls('message')} value={form.message} onChange={set('message')} required />{errors.message && <p className="field-error">{errors.message}</p>}</div>
       </div>

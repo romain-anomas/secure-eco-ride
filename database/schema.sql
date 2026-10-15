@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   name          VARCHAR(120) NOT NULL,
   email         VARCHAR(190) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role          ENUM('ADMIN','STAFF') NOT NULL DEFAULT 'STAFF',
+  role          ENUM('ADMIN','STAFF','DRIVER') NOT NULL DEFAULT 'STAFF',
   is_active     TINYINT(1) NOT NULL DEFAULT 1,
   last_login_at TIMESTAMP NULL DEFAULT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -64,12 +64,15 @@ CREATE TABLE IF NOT EXISTS drivers (
   license_number VARCHAR(60)  NULL,
   status         ENUM('AVAILABLE','BUSY','OFFLINE') NOT NULL DEFAULT 'AVAILABLE',
   vehicle_id     INT UNSIGNED NULL,
+  user_id        INT UNSIGNED NULL,
   is_active      TINYINT(1) NOT NULL DEFAULT 1,
   created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_drivers_status (status),
   KEY idx_drivers_vehicle (vehicle_id),
+  UNIQUE KEY uq_drivers_user_id (user_id),
+  CONSTRAINT fk_drivers_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
   CONSTRAINT fk_drivers_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
@@ -93,11 +96,16 @@ CREATE TABLE IF NOT EXISTS services (
 CREATE TABLE IF NOT EXISTS bookings (
   id                INT UNSIGNED NOT NULL AUTO_INCREMENT,
   reference         VARCHAR(20)  NOT NULL,              -- SER-2026-00001
+  request_key       CHAR(36) NULL,
   customer_id       INT UNSIGNED NOT NULL,
   service_id        INT UNSIGNED NULL,
   service_name      VARCHAR(120) NOT NULL,              -- snapshot, survives service edits
   pickup_location   VARCHAR(255) NOT NULL,
   destination       VARCHAR(255) NOT NULL,
+  pickup_latitude   DECIMAL(10,7) NULL,
+  pickup_longitude  DECIMAL(10,7) NULL,
+  destination_latitude  DECIMAL(10,7) NULL,
+  destination_longitude DECIMAL(10,7) NULL,
   pickup_date       DATE NOT NULL,
   pickup_time       TIME NOT NULL,
   passengers        TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -118,9 +126,11 @@ CREATE TABLE IF NOT EXISTS bookings (
   updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_bookings_reference (reference),
+  UNIQUE KEY uq_bookings_request_key (request_key),
   KEY idx_bookings_customer (customer_id),
   KEY idx_bookings_status (status),
   KEY idx_bookings_date (pickup_date, pickup_time),
+  KEY idx_bookings_pickup_coords (pickup_latitude, pickup_longitude),
   KEY idx_bookings_driver (driver_id),
   KEY idx_bookings_vehicle (vehicle_id),
   KEY idx_bookings_created (created_at),
@@ -150,6 +160,22 @@ CREATE TABLE IF NOT EXISTS booking_status_history (
   KEY idx_history_booking (booking_id),
   CONSTRAINT fk_history_booking FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE,
   CONSTRAINT fk_history_user    FOREIGN KEY (changed_by) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS booking_assignment_history (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  booking_id INT UNSIGNED NOT NULL,
+  previous_driver_id INT UNSIGNED NULL,
+  driver_id INT UNSIGNED NULL,
+  assigned_by INT UNSIGNED NULL,
+  assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_assignment_booking (booking_id, assigned_at),
+  KEY idx_assignment_driver (driver_id, assigned_at),
+  CONSTRAINT fk_assignment_booking FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE,
+  CONSTRAINT fk_assignment_old_driver FOREIGN KEY (previous_driver_id) REFERENCES drivers (id) ON DELETE SET NULL,
+  CONSTRAINT fk_assignment_driver FOREIGN KEY (driver_id) REFERENCES drivers (id) ON DELETE SET NULL,
+  CONSTRAINT fk_assignment_user FOREIGN KEY (assigned_by) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- --------------------------------------------------------- testimonials

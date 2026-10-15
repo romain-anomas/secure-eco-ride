@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, optionalAuth, adminOnly, staffOrAdmin } from '../middleware/auth.js';
+import { authenticate, optionalAuth, adminOnly, staffOrAdmin, driverOnly } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { bookingLimiter, contactLimiter, loginLimiter } from '../middleware/rateLimit.js';
 import { imageUpload } from '../middleware/upload.js';
@@ -13,6 +13,7 @@ import * as bookings from '../controllers/bookingController.js';
 import * as misc from '../controllers/miscController.js';
 import * as wa from '../controllers/whatsappController.js';
 import * as push from '../controllers/pushController.js';
+import * as driver from '../controllers/driverController.js';
 
 const router = Router();
 const id = validate(idParam, 'params');
@@ -28,12 +29,12 @@ router.post('/auth/change-password', authenticate, validate(S.changePasswordSche
 router.post('/bookings', bookingLimiter, validate(S.createBookingSchema), bookings.createBooking);
 router.get('/bookings', authenticate, staffOrAdmin, validate(S.listBookingsQuery, 'query'), bookings.listBookings);
 router.get('/bookings/unseen-count', authenticate, staffOrAdmin, bookings.unseenCount);
+router.post('/email/test', authenticate, adminOnly, bookings.testEmail);
 router.get('/push/status', authenticate, adminOnly, push.status);
 router.post('/push/devices', authenticate, adminOnly, push.registerDevice);
 router.delete('/push/devices', authenticate, adminOnly, push.removeDevice);
 router.get('/bookings/:id', authenticate, staffOrAdmin, id, bookings.getBooking);
-router.patch('/bookings/:id/status', authenticate, staffOrAdmin, id, validate(S.statusSchema), bookings.updateStatus);
-router.patch('/bookings/:id/assign', authenticate, staffOrAdmin, id, validate(S.assignSchema), bookings.assignDriver);
+router.post('/bookings/:id/send-update', authenticate, staffOrAdmin, id, validate(S.dispatchSchema), bookings.sendBookingUpdate);
 router.patch('/bookings/:id', authenticate, staffOrAdmin, id, validate(S.bookingUpdateSchema), bookings.updateBooking);
 
 // ------------------------------------------- services (public read, admin write)
@@ -59,6 +60,10 @@ router.get('/drivers', authenticate, staffOrAdmin, drivers.adminList);
 router.post('/drivers', authenticate, adminOnly, validate(driverSchema), drivers.create);
 router.patch('/drivers/:id', authenticate, staffOrAdmin, id, validate(partialOf(driverSchema)), drivers.update);
 router.delete('/drivers/:id', authenticate, adminOnly, id, drivers.remove);
+router.post('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driverAccountSchema), driver.createAccount);
+router.patch('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driverAccountUpdateSchema), driver.updateAccount);
+router.get('/driver/bookings', authenticate, driverOnly, driver.assignedBookings);
+router.patch('/driver/availability', authenticate, driverOnly, validate(S.driverAvailabilitySchema), driver.updateAvailability);
 
 // --------------------------------------------------------------- pricing
 const pricing = resourceHandlers(Pricing);

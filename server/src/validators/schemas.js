@@ -7,9 +7,14 @@ import { boolish, optionalEmail, optionalInt, optionalPhone, optionalText, phone
 export const createBookingSchema = z.object({
   customer_name: requiredText(2, 120, 'Your name'),
   phone: phoneField('Phone number'),
-  email: optionalEmail(),
+  email: z.string({ required_error: 'Email address is required' }).trim().min(1, 'Email address is required').email('Enter a valid email address').max(190),
   pickup_location: requiredText(2, 255, 'Pickup location'),
   destination: requiredText(2, 255, 'Destination'),
+  pickup_latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
+  pickup_longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+  destination_latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
+  destination_longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+  request_key: z.string().uuid().optional(),
   pickup_date: z.string({ required_error: 'Date is required' })
     .refine(isValidDateString, 'Choose a valid date')
     .refine((d) => d >= todayInTz(config.timezone), 'The date cannot be in the past'),
@@ -23,6 +28,10 @@ export const createBookingSchema = z.object({
   airport_name: optionalText(120),
   luggage_count: optionalInt(0, 50),
   website: z.string().max(0).optional(), // honeypot: real users never fill this
+}).superRefine((data, ctx) => {
+  for (const [lat, lng, label] of [['pickup_latitude', 'pickup_longitude', 'pickup'], ['destination_latitude', 'destination_longitude', 'destination']]) {
+    if ((data[lat] == null) !== (data[lng] == null)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [lat], message: `Provide both ${label} coordinates or neither.` });
+  }
 });
 
 export const listBookingsQuery = z.object({
@@ -36,7 +45,12 @@ export const listBookingsQuery = z.object({
 
 export const statusSchema = z.object({ status: z.enum(BOOKING_STATUSES), note: optionalText(255) });
 export const assignSchema = z.object({ driver_id: z.coerce.number().int().positive(), vehicle_id: optionalInt(1) });
-export const bookingUpdateSchema = z.object({ admin_notes: optionalText(2000), quoted_price: z.preprocess((v) => (v === '' ? null : v), z.coerce.number().min(0).nullable().optional()) });
+export const dispatchSchema = z.object({
+  driver_id: z.coerce.number().int().positive(),
+  status: z.enum(BOOKING_STATUSES),
+  note: optionalText(255),
+});
+export const bookingUpdateSchema = z.object({ admin_notes: optionalText(2000), quoted_price: z.preprocess((v) => (v === '' ? null : v), z.coerce.number().min(0).max(9_999_999_999.99).nullable().optional()) });
 
 export const contactSchema = z.object({
   type: z.enum(['GENERAL', 'CORPORATE']).default('GENERAL'),
@@ -48,12 +62,26 @@ export const contactSchema = z.object({
   website: z.string().max(0).optional(),
 }).refine((v) => v.phone || v.email, { message: 'Provide a phone number or an email so we can reply', path: ['phone'] });
 
-export const loginSchema = z.object({ email: z.string().trim().email('Enter a valid email'), password: z.string().min(1, 'Password is required').max(200) });
+export const loginSchema = z.object({
+  email: z.string().trim().email('Enter a valid email'),
+  password: z.string().min(1, 'Password is required').max(200),
+  login_type: z.enum(['ADMIN', 'DRIVER']).default('ADMIN'),
+});
 
 export const changePasswordSchema = z.object({
   current_password: z.string().min(1).max(200),
   new_password: z.string().min(10, 'Use at least 10 characters').max(200),
 });
+export const driverAccountSchema = z.object({
+  email: z.string().trim().email('Enter a valid email').max(190),
+  password: z.string().min(10, 'Use at least 10 characters').max(200),
+});
+export const driverAccountUpdateSchema = z.object({
+  email: z.preprocess((v) => v === '' ? undefined : v, z.string().trim().email('Enter a valid email').max(190).optional()),
+  password: z.preprocess((v) => v === '' ? undefined : v, z.string().min(10, 'Use at least 10 characters').max(200).optional()),
+  is_active: boolish,
+}).refine((v) => v.email !== undefined || v.password !== undefined || v.is_active !== undefined, 'Change at least one account setting.');
+export const driverAvailabilitySchema = z.object({ available: z.boolean() });
 
 export const userCreateSchema = z.object({
   name: requiredText(2, 120, 'Name'),

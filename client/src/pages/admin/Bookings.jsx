@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Eye, RefreshCw, Search } from 'lucide-react';
-import { get, parseError, patch, post } from '../../services/api.js';
+import { Eye, RefreshCw, Search, Send } from 'lucide-react';
+import { parseError, patch, post } from '../../services/api.js';
 import useFetch from '../../hooks/useFetch.js';
 import { Badge, Empty, ErrorBox, Modal, PageHeader, Pager, Spinner, TableWrap } from '../../components/admin/ui.jsx';
 import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime, money } from '../../utils/format.js';
 import { prettyPhone } from '../../utils/phone.js';
+import BookingLocationMap from '../../components/admin/BookingLocationMap.jsx';
 
 const TERMINAL = ['COMPLETED', 'CANCELLED'];
 
@@ -15,9 +16,7 @@ export default function Bookings() {
   const [filters, setFilters] = useState({ status: '', date_from: '', date_to: '', q: '' });
   const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState(() => (routeId ? Number(routeId) : null));
-  const [cancelRow, setCancelRow] = useState(null);
   const [error, setError] = useState('');
-  const [busyId, setBusyId] = useState(null);
 
   const params = { ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)), page, limit: 25 };
   const { data, meta: rawMeta, loading, error: loadError, reload, setData } = useFetch('/bookings', { params, initial: [] });
@@ -37,15 +36,6 @@ export default function Bookings() {
   }, [reload]);
 
   const setFilter = (k) => (e) => { setPage(1); setFilters((f) => ({ ...f, [k]: e.target.value })); };
-
-  async function quickStatus(row, status, note) {
-    setBusyId(row.id); setError('');
-    try {
-      const res = await patch(`/bookings/${row.id}/status`, { status, note });
-      setData((list) => list.map((b) => (b.id === row.id ? { ...b, ...res.data } : b)));
-      setCancelRow(null);
-    } catch (e) { setError(parseError(e).message); } finally { setBusyId(null); }
-  }
 
   return (
     <>
@@ -69,9 +59,25 @@ export default function Bookings() {
       <ErrorBox>{error || (loadError && parseError(loadError).message)}</ErrorBox>
       {loading && !data?.length ? <Spinner /> : !data?.length ? <Empty>No bookings match these filters.</Empty> : (
         <>
+          <div className="space-y-3 sm:hidden">
+            {data.map((b) => <article key={b.id} className={`admin-card !p-4 ${b.seen_by_admin ? '' : 'border-l-4 border-l-leaf'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="text-xs font-bold uppercase tracking-wide text-night/50">{b.reference}</p><h2 className="mt-1 text-lg font-bold">{b.customer_name}</h2></div>
+                <Badge value={b.status} />
+              </div>
+              <p className="mt-2 text-sm text-night/60">{formatDate(b.pickup_date)} · {formatTime(b.pickup_time)}</p>
+              <dl className="mt-3 grid gap-3 text-sm">
+                <div><dt className="text-xs font-bold uppercase text-night/45">Pickup</dt><dd className="font-medium">{b.pickup_location}</dd></div>
+                <div><dt className="text-xs font-bold uppercase text-night/45">Destination</dt><dd className="font-medium">{b.destination}</dd></div>
+                <div className="flex items-center justify-between gap-3"><dt className="text-xs font-bold uppercase text-night/45">Driver</dt><dd>{b.driver_name || 'Not assigned'}</dd></div>
+              </dl>
+              <button type="button" className="btn btn-primary mt-4 w-full" onClick={() => setOpenId(b.id)}><Eye className="h-4 w-4" aria-hidden="true" /> Review booking</button>
+            </article>)}
+          </div>
+          <div className="hidden sm:block">
           <TableWrap>
             <thead className="bg-mist">
-              <tr>{['Booking ID', 'Customer', 'Phone', 'Pickup', 'Destination', 'Date', 'Time', 'Service', 'Driver', 'Status', 'WhatsApp', 'Created', 'Actions'].map((h) => <th key={h} className="th">{h}</th>)}</tr>
+              <tr>{['Booking ID', 'Customer', 'Phone', 'Pickup', 'Destination', 'Date', 'Time', 'Service', 'Driver', 'Status', 'Created', 'Actions'].map((h) => <th key={h} className="th">{h}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-night/5">
               {data.map((b) => (
@@ -86,34 +92,22 @@ export default function Bookings() {
                   <td className="td">{b.service_name}</td>
                   <td className="td">{b.driver_name || '—'}</td>
                   <td className="td"><Badge value={b.status} /></td>
-                  <td className="td"><Badge value={b.whatsapp_status} label={{ SENT: 'Sent', PARTIAL: 'Partial', FAILED: 'Failed', NOT_SENT: 'Not sent', NONE: '—' }[b.whatsapp_status]} /></td>
                   <td className="td whitespace-nowrap text-night/60">{formatDateTime(b.created_at)}</td>
                   <td className="td">
                     <div className="flex flex-wrap gap-1.5">
-                      <button type="button" className="btn btn-dark btn-sm !px-3" onClick={() => setOpenId(b.id)}><Eye className="h-3.5 w-3.5" aria-hidden="true" /> View</button>
-                      {b.status === 'PENDING' && <button type="button" className="btn btn-primary btn-sm !px-3" disabled={busyId === b.id} onClick={() => quickStatus(b, 'CONFIRMED', 'Confirmed by admin')}>Confirm</button>}
-                      {!TERMINAL.includes(b.status) && <button type="button" className="btn btn-outline btn-sm !px-3" onClick={() => setOpenId(b.id)}>Assign driver</button>}
-                      {!TERMINAL.includes(b.status) && <button type="button" className="btn btn-sm !px-3 border-2 border-red-300 text-red-700 hover:bg-red-50" onClick={() => setCancelRow(b)}>Cancel</button>}
+                      <button type="button" className="btn btn-primary btn-sm !px-3" onClick={() => setOpenId(b.id)}><Eye className="h-3.5 w-3.5" aria-hidden="true" /> Review &amp; send</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </TableWrap>
+          </div>
           <Pager page={page} limit={meta.limit || 25} total={meta.total || 0} onPage={setPage} />
         </>
       )}
 
       {openId && <BookingDetail id={openId} onClose={closeDetail} onChanged={reload} />}
-      {cancelRow && (
-        <Modal title="Cancel this booking?" onClose={() => setCancelRow(null)}>
-          <p className="text-night/75"><strong>{cancelRow.reference}</strong> for {cancelRow.customer_name} will be marked as cancelled. Remember to let the customer know.</p>
-          <div className="mt-6 flex justify-end gap-2">
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setCancelRow(null)}>Keep booking</button>
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => quickStatus(cancelRow, 'CANCELLED', 'Cancelled by admin')}>Cancel booking</button>
-          </div>
-        </Modal>
-      )}
     </>
   );
 }
@@ -133,7 +127,6 @@ function BookingDetail({ id, onClose, onChanged }) {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
-  const [links, setLinks] = useState(null);
 
   useEffect(() => {
     if (b) { setStatus(b.status); setDriverId(b.driver_id || ''); setNotes({ admin_notes: b.admin_notes || '', quoted_price: b.quoted_price ?? '' }); }
@@ -141,22 +134,26 @@ function BookingDetail({ id, onClose, onChanged }) {
 
   async function run(name, fn, done) {
     setBusy(name); setErr(''); setMsg('');
-    try { await fn(); setMsg(done); await reload(); onChanged?.(); } catch (e) { setErr(parseError(e).message); } finally { setBusy(''); }
+    try { const result = await fn(); setMsg(typeof done === 'function' ? done(result) : done); await reload(); onChanged?.(); } catch (e) { setErr(parseError(e).message); } finally { setBusy(''); }
   }
 
-  const changeStatus = () => run('status', () => patch(`/bookings/${id}/status`, { status, note: note || null }), 'Status updated.').then(() => setNote(''));
-  const assign = () => run('assign', () => patch(`/bookings/${id}/assign`, { driver_id: Number(driverId) }), 'Driver assigned.');
-  const saveNotes = () => run('notes', () => patch(`/bookings/${id}`, { admin_notes: notes.admin_notes, quoted_price: notes.quoted_price === '' ? null : Number(notes.quoted_price) }), 'Notes saved.');
-  const resend = () => run('resend', async () => {
-    const res = await post(`/whatsapp/send-booking/${id}`);
-    if (!res.data.configured) throw new Error('WhatsApp Cloud API is not configured — nothing was sent automatically. Use the manual links below.');
-  }, 'Notification sent again — see the log below.');
-  const retryOne = (logId) => run(`retry${logId}`, () => post(`/whatsapp/logs/${logId}/retry`), 'Retry finished — see the log below.');
-  async function showLinks() {
-    setErr('');
-    try { setLinks((await get(`/whatsapp/booking/${id}/links`)).data); } catch (e) { setErr(parseError(e).message); }
-  }
-
+  const sendUpdate = () => run('dispatch', () => post(`/bookings/${id}/send-update`, { driver_id: Number(driverId), status, note: note || null }), (response) => {
+    const emailState = response.meta?.status_emails;
+    if (emailState?.customer === 'SENT' && emailState?.admin === 'SENT') return 'Booking saved. Email sent to the passenger and admin inbox.';
+    if (emailState?.customer === 'NO_EMAIL') return 'Booking saved and admin emailed, but this older booking has no passenger email address.';
+    if (emailState?.customer === 'FAILED' || emailState?.admin === 'FAILED') return 'Booking saved, but one or more emails failed. Check SMTP settings and server logs.';
+    return 'Booking saved and email sent.';
+  }).then(() => setNote(''));
+  const saveNotes = () => {
+    if (notes.quoted_price !== '') {
+      const quote = Number(notes.quoted_price);
+      if (!Number.isFinite(quote) || quote < 0 || quote > 9_999_999_999.99) {
+        setErr('Quoted price must be a number from 0 to 9,999,999,999.99.');
+        return;
+      }
+    }
+    return run('notes', () => patch(`/bookings/${id}`, { admin_notes: notes.admin_notes, quoted_price: notes.quoted_price === '' ? null : Number(notes.quoted_price) }), 'Notes saved.');
+  };
   const locked = b && TERMINAL.includes(b.status);
   return (
     <Modal title={b ? `Booking ${b.reference}` : 'Booking'} onClose={onClose} wide>
@@ -185,23 +182,39 @@ function BookingDetail({ id, onClose, onChanged }) {
             <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs font-bold uppercase tracking-wider text-night/50">Customer notes</dt><dd className="mt-0.5 whitespace-pre-line font-semibold">{b.notes || '—'}</dd></div>
           </dl>
 
-          <section className="grid gap-5 lg:grid-cols-2">
-            <div className="admin-card">
-              <h3 className="font-display text-base font-black uppercase">Change status</h3>
-              <select className="input mt-3" aria-label="New status" value={status} onChange={(e) => setStatus(e.target.value)}>
-                {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-              </select>
-              <input className="input mt-3" placeholder="Optional note (kept in history)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} />
-              <button type="button" className="btn btn-primary btn-sm mt-3" disabled={busy === 'status' || status === b.status} onClick={changeStatus}>Update status</button>
+          <section className="admin-card">
+            <h3 className="mb-3 font-display text-base font-black uppercase">Pickup and destination map</h3>
+            <BookingLocationMap booking={b} />
+          </section>
+
+          <section className="admin-card">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-leaf/15 text-moss"><Send className="h-5 w-5" aria-hidden="true" /></span>
+              <div><h3 className="font-display text-base font-black uppercase">Review, assign &amp; send passenger update</h3>
+                <p className="mt-1 text-sm text-night/60">Choose an active driver and status. Press Send when you have checked the booking. The passenger and admin inbox receive the trip and driver details by email.</p></div>
             </div>
-            <div className="admin-card">
-              <h3 className="font-display text-base font-black uppercase">Assign driver</h3>
-              <select className="input mt-3" aria-label="Driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={locked}>
-                <option value="">Choose a driver</option>
-                {(drivers.data || []).filter((d) => d.is_active).map((d) => <option key={d.id} value={d.id}>{d.name} — {d.status.toLowerCase()}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
-              </select>
-              {!drivers.loading && !(drivers.data || []).length && <p className="mt-2 text-sm text-night/60">No drivers yet. Add them under Drivers.</p>}
-              <button type="button" className="btn btn-primary btn-sm mt-3" disabled={!driverId || busy === 'assign' || locked || Number(driverId) === b.driver_id} onClick={assign}>Assign driver</button>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="block"><span className="label">Assign active driver</span>
+                <select className="input" aria-label="Assign active driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={locked || drivers.loading}>
+                  <option value="">Choose a driver</option>
+                  {(drivers.data || []).filter((d) => d.is_active).map((d) => <option key={d.id} value={d.id}>{d.name} · {d.status.toLowerCase()}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
+                </select>
+              </label>
+              <label className="block"><span className="label">Passenger email status</span>
+                <select className="input" aria-label="Passenger email status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={locked}>
+                  {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+                </select>
+              </label>
+            </div>
+            {!drivers.loading && !(drivers.data || []).filter((d) => d.is_active).length && <p className="mt-3 text-sm text-amber-800">No active drivers are available. Add or activate a driver before sending this update.</p>}
+            <label className="mt-4 block"><span className="label">Note for booking history (optional)</span>
+              <input className="input" placeholder="Add an internal note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} />
+            </label>
+            <div className="mt-4 flex flex-col gap-3 border-t border-night/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-night/55">Email goes to <strong>{b.customer_email || 'No passenger email saved'}</strong> and the configured admin inbox.</p>
+              <button type="button" className="btn btn-primary w-full sm:w-auto" disabled={!driverId || busy === 'dispatch' || locked || drivers.loading} onClick={sendUpdate}>
+                <Send className="h-4 w-4" aria-hidden="true" /> {busy === 'dispatch' ? 'Saving & sending…' : 'Save assignment & send'}
+              </button>
             </div>
           </section>
 
@@ -209,38 +222,10 @@ function BookingDetail({ id, onClose, onChanged }) {
             <h3 className="font-display text-base font-black uppercase">Internal notes &amp; quoted price</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_12rem]">
               <textarea className="input" rows={3} placeholder="Notes only your team sees" value={notes.admin_notes} onChange={(e) => setNotes((n) => ({ ...n, admin_notes: e.target.value }))} />
-              <input className="input" type="number" min="0" step="0.01" placeholder="Quoted price" aria-label="Quoted price" value={notes.quoted_price} onChange={(e) => setNotes((n) => ({ ...n, quoted_price: e.target.value }))} />
+              <input className="input" type="number" min="0" max="9999999999.99" step="0.01" placeholder="Quoted price" aria-label="Quoted price" value={notes.quoted_price} onChange={(e) => setNotes((n) => ({ ...n, quoted_price: e.target.value }))} />
             </div>
             {b.quoted_price != null && <p className="mt-2 text-sm text-night/60">Current quote: {money(b.quoted_price)}</p>}
             <button type="button" className="btn btn-outline btn-sm mt-3" disabled={busy === 'notes'} onClick={saveNotes}>Save notes</button>
-          </section>
-
-          <section className="admin-card">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-display text-base font-black uppercase">WhatsApp notification</h3>
-              <div className="flex gap-2">
-                <button type="button" className="btn btn-outline btn-sm" onClick={showLinks}>Manual send links</button>
-                <button type="button" className="btn btn-dark btn-sm" disabled={busy === 'resend'} onClick={resend}>Send to all numbers again</button>
-              </div>
-            </div>
-            {b.whatsapp_logs.length ? (
-              <ul className="mt-4 divide-y divide-night/10 text-sm">
-                {b.whatsapp_logs.map((l) => (
-                  <li key={l.id} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
-                    <div><span className="font-semibold">{l.recipient}</span> <Badge value={l.status} />{l.attempts > 1 && <span className="ml-2 text-xs text-night/50">{l.attempts} attempts</span>}
-                      {l.error && <p className="mt-1 max-w-xl text-xs text-red-700">{l.error}</p>}</div>
-                    {l.status !== 'SENT' && <button type="button" className="btn btn-outline btn-sm !px-3" disabled={busy === `retry${l.id}`} onClick={() => retryOne(l.id)}>Retry</button>}
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="mt-3 text-sm text-night/60">No notification attempts recorded.</p>}
-            {links && (
-              <div className="mt-4 rounded-xl bg-mist p-4">
-                <p className="text-sm text-night/70">These open WhatsApp with the message ready — <strong>you must still press Send</strong> in WhatsApp.</p>
-                <div className="mt-3 flex flex-wrap gap-2">{links.links.map((l) => <a key={l.recipient} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-dark btn-sm">{l.label}</a>)}</div>
-                <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs">{links.message}</pre>
-              </div>
-            )}
           </section>
 
           <section>
@@ -250,6 +235,15 @@ function BookingDetail({ id, onClose, onChanged }) {
                 <li key={h.id}><Badge value={h.to_status} /> <span className="text-night/60">{formatDateTime(h.created_at)}{h.changed_by_name ? ` · ${h.changed_by_name}` : ''}</span>{h.note && <span className="block text-night/75">{h.note}</span>}</li>
               ))}
             </ol>
+          </section>
+          <section>
+            <h3 className="font-display text-base font-black uppercase">Driver assignment history</h3>
+            {b.assignment_history?.length ? <ol className="mt-3 space-y-2 border-l-2 border-leaf/50 pl-4 text-sm">
+              {b.assignment_history.map((a) => <li key={a.id}>
+                <strong>{a.driver_name}</strong>{a.previous_driver_name ? ` (reassigned from ${a.previous_driver_name})` : ''}
+                <span className="text-night/60"> · {formatDateTime(a.assigned_at)}{a.assigned_by_name ? ` · ${a.assigned_by_name}` : ''}</span>
+              </li>)}
+            </ol> : <p className="mt-2 text-sm text-night/60">No assignment changes recorded yet.</p>}
           </section>
         </div>
       )}

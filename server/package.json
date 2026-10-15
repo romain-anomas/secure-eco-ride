@@ -10,6 +10,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "db:init": "node scripts/initDb.js",
+    "db:migrate:drivers": "node scripts/migrateDriverAccounts.js",
     "db:migrate:fcm": "node scripts/migrateFcm.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed.js --demo-fleet",

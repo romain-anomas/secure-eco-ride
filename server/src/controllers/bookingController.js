@@ -2,8 +2,7 @@ import { pool } from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { notFound } from '../utils/AppError.js';
 import * as bookings from '../services/bookingService.js';
-import { sendBookingNotification } from '../services/whatsappService.js';
-import { sendNotificationEmail } from '../services/emailService.js';
+import { sendAdminBookingStatusEmail, sendBookingAdminEmail, sendCustomerBookingStatusEmail, sendTestEmail } from '../services/emailService.js';
 import { sendBookingPush } from '../services/pushService.js';
 
 const CUSTOMER_MESSAGE = 'Your booking has been received. Our team will contact you shortly.';
@@ -12,18 +11,14 @@ export const createBooking = asyncHandler(async (req, res) => {
   // Honeypot: pretend success so bots learn nothing
   if (req.body.website) return res.status(201).json({ data: { reference: 'SER-RECEIVED', message: CUSTOMER_MESSAGE } });
 
-  const booking = await bookings.createBooking(req.body);
+  const { booking, created } = await bookings.createBooking(req.body);
+  if (!created) {
+    return res.status(200).json({ data: { reference: booking.reference, status: booking.status, message: CUSTOMER_MESSAGE } });
+  }
   sendBookingPush(booking).catch((err) => console.error(`[booking ${booking.reference}] push dispatch failed code=${err.code || 'unknown_error'}`));
 
   // The booking is already saved. Notification problems must never undo it or reach the customer as an error.
-  let fallbackLinks = [];
-  try {
-    const notification = await sendBookingNotification(booking);
-    fallbackLinks = notification.fallbackLinks;
-    sendNotificationEmail(`New booking ${booking.reference}`, notification.message).catch(() => {});
-  } catch (err) {
-    console.error(`[booking ${booking.reference}] notification failed:`, err);
-  }
+  sendBookingAdminEmail(booking).catch(() => {});
 
   res.status(201).json({
     data: {
@@ -38,8 +33,6 @@ export const createBooking = asyncHandler(async (req, res) => {
         passengers: booking.passengers,
         service_name: booking.service_name,
       },
-      // Only present when WhatsApp Cloud API is not configured (development fallback).
-      whatsappFallback: fallbackLinks.length ? { requiresManualSend: true, links: fallbackLinks } : null,
     },
   });
 });
@@ -55,6 +48,11 @@ export const unseenCount = asyncHandler(async (_req, res) => {
   res.json({ data: { ...summary, booking_ids: rows.map((row) => String(row.id)) } });
 });
 
+export const testEmail = asyncHandler(async (_req, res) => {
+  const result = await sendTestEmail();
+  res.status(result.sent ? 200 : 503).json({ data: result });
+});
+
 export const getBooking = asyncHandler(async (req, res) => {
   const booking = await bookings.getBookingById(req.params.id);
   if (!booking) throw notFound('Booking not found');
@@ -63,16 +61,23 @@ export const getBooking = asyncHandler(async (req, res) => {
     booking.seen_by_admin = 1;
   }
   const history = await bookings.getStatusHistory(booking.id);
-  const [logs] = await pool.query('SELECT id, recipient, status, error, attempts, created_at FROM whatsapp_logs WHERE booking_id = ? ORDER BY id DESC', [booking.id]);
-  res.json({ data: { ...booking, history, whatsapp_logs: logs } });
+  const assignment_history = await bookings.getAssignmentHistory(booking.id);
+  res.json({ data: { ...booking, history, assignment_history } });
 });
 
-export const updateStatus = asyncHandler(async (req, res) => {
-  res.json({ data: await bookings.changeStatus(req.params.id, req.body.status, req.user.id, req.body.note) });
-});
-
-export const assignDriver = asyncHandler(async (req, res) => {
-  res.json({ data: await bookings.assignDriver(req.params.id, req.body, req.user.id) });
+export const sendBookingUpdate = asyncHandler(async (req, res) => {
+  const { booking, previousStatus } = await bookings.dispatchBookingUpdate(req.params.id, req.body, req.user.id);
+  const [customerResult, adminResult] = await Promise.all([
+    sendCustomerBookingStatusEmail(booking, previousStatus),
+    sendAdminBookingStatusEmail(booking, previousStatus),
+  ]);
+  const emailStatus = {
+    customer: customerResult.sent ? 'SENT' : customerResult.reason === 'Customer email not provided' ? 'NO_EMAIL' : 'FAILED',
+    admin: adminResult.sent ? 'SENT' : 'FAILED',
+  };
+  if (!customerResult.sent) console.error(`[booking ${booking.reference}] customer status email not sent: ${customerResult.reason}`);
+  if (!adminResult.sent) console.error(`[booking ${booking.reference}] admin status email not sent: ${adminResult.reason}`);
+  res.json({ data: booking, meta: { status_emails: emailStatus } });
 });
 
 export const updateBooking = asyncHandler(async (req, res) => {

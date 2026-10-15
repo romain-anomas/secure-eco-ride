@@ -58,7 +58,7 @@ export default function AdminLayout() {
 
   // Poll for new website bookings (the in-dashboard notification)
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user || user.role === 'DRIVER') return undefined;
     let stop = false;
     const tick = async () => {
       try {
@@ -128,6 +128,7 @@ export default function AdminLayout() {
 
   if (checking) return <div className="grid min-h-screen place-items-center bg-mist"><Spinner label="Checking your session…" /></div>;
   if (!user) return <Navigate to="/admin/login" replace state={{ from: pathname }} />;
+  if (user.role === 'DRIVER') return <Navigate to="/driver" replace />;
 
   const links = NAV.filter((n) => !n.admin || isAdmin);
   const sidebar = (

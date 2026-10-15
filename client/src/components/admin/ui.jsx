@@ -64,13 +64,13 @@ export function Modal({ title, onClose, children, wide = false }) {
   );
 }
 
-export function Field({ label, hint, error, children, className = '' }) {
+export function Field({ id, label, hint, error, children, className = '' }) {
   return (
     <div className={className}>
-      <label className="label">{label}</label>
+      <label className="label" htmlFor={id}>{label}</label>
       {children}
       {hint && <p className="mt-1 text-xs text-night/55">{hint}</p>}
-      {error && <p className="field-error">{error}</p>}
+      {error && <p id={id ? `${id}-error` : undefined} className="field-error">{error}</p>}
     </div>
   );
 }

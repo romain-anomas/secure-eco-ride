@@ -12,8 +12,8 @@ export function AuthProvider({ children }) {
     get('/auth/me').then((r) => setUser(r.data)).catch(() => setToken(null)).finally(() => setChecking(false));
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const res = await post('/auth/login', { email, password });
+  const login = useCallback(async (email, password, loginType = 'ADMIN') => {
+    const res = await post('/auth/login', { email, password, login_type: loginType });
     setToken(res.data.token);
     setUser(res.data.user);
     return res.data.user;
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => { setToken(null); setUser(null); }, []);
 
-  const value = useMemo(() => ({ user, checking, login, logout, isAdmin: user?.role === 'ADMIN' }), [user, checking, login, logout]);
+  const value = useMemo(() => ({ user, checking, login, logout, isAdmin: user?.role === 'ADMIN', isDriver: user?.role === 'DRIVER' }), [user, checking, login, logout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

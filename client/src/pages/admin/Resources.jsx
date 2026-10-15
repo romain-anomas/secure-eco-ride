@@ -3,6 +3,11 @@ import { Badge } from '../../components/admin/ui.jsx';
 import { ICON_OPTIONS } from '../../components/ServiceIcon.jsx';
 import { prettyPhone } from '../../utils/phone.js';
 import { formatDateTime, money } from '../../utils/format.js';
+import { useState } from 'react';
+import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Modal } from '../../components/admin/ui.jsx';
+import { parseError, patch, post } from '../../services/api.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const opt = (arr) => arr.map((v) => ({ value: v, label: v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ') }));
 const yesNo = (v) => (v ? 'Yes' : 'No');
@@ -10,14 +15,15 @@ const yesNo = (v) => (v ? 'Yes' : 'No');
 // ------------------------------------------------------------------ Drivers
 const DRIVER_FIELDS = [
   { name: 'name', label: 'Full name', required: true },
-  { name: 'phone', label: 'Phone', type: 'tel', required: true, hint: 'e.g. 0788123456' },
+  { name: 'phone', label: 'Phone', type: 'phone', required: true, hint: 'Choose the calling code, then enter the number.' },
   { name: 'license_number', label: 'License number', hint: 'Only if you are legally required and permitted to keep it.' },
   { name: 'status', label: 'Status', type: 'select', options: opt(['AVAILABLE', 'BUSY', 'OFFLINE']), allowEmpty: false, default: 'AVAILABLE' },
   { name: 'vehicle_id', label: 'Assigned vehicle', type: 'select', numeric: true, optionsFrom: { endpoint: '/fleet', params: { all: 1 }, label: (v) => `${v.name}${v.plate_number ? ` · ${v.plate_number}` : ''}` } },
   { name: 'is_active', label: 'Active driver', type: 'checkbox', hint: 'Inactive drivers cannot be assigned to bookings.' },
 ];
-export const Drivers = () => (
-  <ResourceManager title="Drivers" subtitle="Add your real drivers. Nothing is pre-filled." endpoint="/drivers" itemName="driver" addLabel="Add driver" empty="No drivers yet. Add your first driver."
+export const Drivers = () => {
+  const { isAdmin } = useAuth();
+  return <ResourceManager title="Drivers" subtitle="Add your real drivers and create their sign-in accounts." endpoint="/drivers" itemName="driver" addLabel="Add driver" empty="No drivers yet. Add your first driver."
     fields={DRIVER_FIELDS}
     columns={[
       { header: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
@@ -25,8 +31,58 @@ export const Drivers = () => (
       { header: 'Status', render: (r) => <Badge value={r.status} /> },
       { header: 'Vehicle', render: (r) => r.vehicle_name ? `${r.vehicle_name}${r.vehicle_plate ? ` (${r.vehicle_plate})` : ''}` : '—' },
       { header: 'Active', render: (r) => yesNo(r.is_active) },
-    ]} />
-);
+      { header: 'Driver login', render: (r) => r.account_email || 'Not created' },
+    ]} renderRowAction={isAdmin ? (row, actions) => <DriverAccountAction key={row.id} row={row} {...actions} /> : undefined} />;
+};
+
+function DriverAccountAction({ row, reload, setNotice, setActionError }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [accountActive, setAccountActive] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(null);
+  const hasAccount = Boolean(row.account_email);
+  function openEditor() {
+    setEmail(row.account_email || '');
+    setPassword('');
+    setAccountActive(row.account_active !== false && row.account_active !== 0);
+    setShowPassword(false);
+    setCreated(null);
+    setOpen(true);
+  }
+  function closeEditor() { setOpen(false); setCreated(null); setPassword(''); }
+  async function submit(e) {
+    e.preventDefault(); setBusy(true); setActionError('');
+    try {
+      if (hasAccount) {
+        const payload = { email, is_active: accountActive };
+        if (password) payload.password = password;
+        await patch(`/drivers/${row.id}/account`, payload);
+        setNotice(`Driver login updated for ${row.name}.`);
+        closeEditor();
+      } else {
+        const result = await post(`/drivers/${row.id}/account`, { email, password });
+        setCreated(result.data); setNotice(`Driver login created for ${row.name}.`);
+      }
+      reload();
+    } catch (err) { setActionError(parseError(err).message); }
+    finally { setBusy(false); }
+  }
+  return <>
+    <button type="button" title={hasAccount ? 'Manage driver login' : 'Create driver login'} className="grid h-9 w-9 place-items-center rounded-full border border-night/15 hover:border-leaf" onClick={openEditor} aria-label={`${hasAccount ? 'Manage' : 'Create'} login for ${row.name}`}><KeyRound className="h-4 w-4" /></button>
+    {open && <Modal title={`${hasAccount ? 'Manage' : 'Create'} login for ${row.name}`} onClose={closeEditor}>
+      {created ? <div className="space-y-3 text-sm"><p>Share these sign-in details securely with the driver.</p><p><b>Email:</b> {created.email}</p><p><b>Temporary password:</b> {password}</p><p className="text-night/60">The driver can change this password after signing in.</p><div className="flex justify-end"><button type="button" className="btn btn-primary btn-sm" onClick={closeEditor}>Done</button></div></div> : <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-night/65">This login only opens the driver's assigned jobs and availability.</p>
+        <label className="block"><span className="label">Login email</span><input className="input" type="email" autoComplete="off" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+        <label className="block"><span className="label">{hasAccount ? 'New password (optional)' : 'Temporary password'}</span><span className="relative block"><input className="input pr-12" type={showPassword ? 'text' : 'password'} minLength={hasAccount && !password ? undefined : 10} required={!hasAccount} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={hasAccount ? 'Leave blank to keep current password' : 'At least 10 characters'} /><button type="button" className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg text-night/55 hover:bg-mist" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span><span className="mt-1 block text-xs text-night/55">{hasAccount ? 'Enter at least 10 characters only when changing it.' : 'At least 10 characters.'}</span></label>
+        {hasAccount && <label className="flex items-center gap-3 rounded-xl border border-night/15 px-4 py-3"><input type="checkbox" className="h-5 w-5 accent-[rgb(var(--c-green))]" checked={accountActive} onChange={(e) => setAccountActive(e.target.checked)} /><span><span className="block text-sm font-semibold">Allow driver sign-in</span><span className="block text-xs text-night/55">Turn off to block this login account.</span></span></label>}
+        <div className="flex justify-end gap-2"><button type="button" className="btn btn-outline btn-sm" onClick={closeEditor}>Cancel</button><button className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saving…' : hasAccount ? 'Save account' : 'Create account'}</button></div>
+      </form>}
+    </Modal>}
+  </>;
+}
 
 // ----------------------------------------------------------------- Vehicles
 const VEHICLE_FIELDS = [
@@ -34,7 +90,7 @@ const VEHICLE_FIELDS = [
   { name: 'model', label: 'Model' },
   { name: 'plate_number', label: 'Plate number', hint: 'Never shown publicly.' },
   { name: 'category', label: 'Category', required: true, default: 'Sedan', hint: 'e.g. Sedan, SUV, Executive, Airport Vehicle' },
-  { name: 'capacity', label: 'Passenger capacity', type: 'number', default: 4 },
+  { name: 'capacity', label: 'Passenger capacity', type: 'number', min: 1, max: 60, required: true, default: 4 },
   { name: 'status', label: 'Status', type: 'select', options: opt(['AVAILABLE', 'BUSY', 'MAINTENANCE']), allowEmpty: false, default: 'AVAILABLE' },
   { name: 'image_url', label: 'Photo', type: 'image' },
   { name: 'description', label: 'Description', type: 'textarea' },
@@ -60,7 +116,7 @@ const SERVICE_FIELDS = [
   { name: 'slug', label: 'URL name (slug)', hint: 'Leave blank to generate from the name.' },
   { name: 'description', label: 'Description', type: 'textarea' },
   { name: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS.map((v) => ({ value: v, label: v })), allowEmpty: false, default: 'car' },
-  { name: 'sort_order', label: 'Sort order', type: 'number', default: 0 },
+  { name: 'sort_order', label: 'Sort order', type: 'number', min: -1000, max: 1000, required: true, default: 0 },
   { name: 'is_bookable', label: 'Selectable in booking form', type: 'checkbox' },
   { name: 'is_active', label: 'Visible on website', type: 'checkbox' },
 ];
@@ -79,10 +135,10 @@ export const ServicesAdmin = () => (
 const PRICING_FIELDS = [
   { name: 'name', label: 'Rule name', required: true, hint: 'e.g. Standard city ride' },
   { name: 'service_id', label: 'Service', type: 'select', numeric: true, optionsFrom: { endpoint: '/services', params: { all: 1 }, label: (s) => s.name } },
-  { name: 'base_price', label: 'Base price', type: 'money' },
-  { name: 'price_per_km', label: 'Price per km', type: 'money' },
-  { name: 'minimum_price', label: 'Minimum price', type: 'money' },
-  { name: 'additional_fees', label: 'Additional fees', type: 'money' },
+  { name: 'base_price', label: 'Base price', type: 'money', max: 1000000000 },
+  { name: 'price_per_km', label: 'Price per km', type: 'money', max: 1000000000 },
+  { name: 'minimum_price', label: 'Minimum price', type: 'money', max: 1000000000 },
+  { name: 'additional_fees', label: 'Additional fees', type: 'money', max: 1000000000 },
   { name: 'currency', label: 'Currency', default: 'RWF' },
   { name: 'notes', label: 'Note shown with the price', hint: 'e.g. "per trip within the city"' },
   { name: 'is_active', label: 'Active', type: 'checkbox' },
@@ -105,7 +161,7 @@ export const PricingAdmin = () => (
 const TESTIMONIAL_FIELDS = [
   { name: 'customer_name', label: 'Customer name', required: true },
   { name: 'text', label: 'Testimonial', type: 'textarea', required: true, hint: 'Only add feedback from real customers, with their permission.' },
-  { name: 'rating', label: 'Rating (1–5)', type: 'number', default: 5 },
+  { name: 'rating', label: 'Rating (1–5)', type: 'number', min: 1, max: 5, required: true, default: 5 },
   { name: 'status', label: 'Status', type: 'select', options: opt(['PENDING', 'APPROVED', 'HIDDEN']), allowEmpty: false, default: 'PENDING', hint: 'Only APPROVED testimonials appear publicly.' },
 ];
 export const TestimonialsAdmin = () => (

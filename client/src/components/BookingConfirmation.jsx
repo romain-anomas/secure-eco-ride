@@ -1,4 +1,4 @@
-import { CheckCircle2, MessageCircle, Phone } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { formatDate } from '../utils/format.js';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -8,7 +8,6 @@ export default function BookingConfirmation({ result, onReset }) {
   const reduce = useReducedMotion();
   const { phones, tel } = useSettings();
   const s = result.summary || {};
-  const fallback = result.whatsappFallback;
 
   return (
     <motion.div
@@ -47,23 +46,6 @@ export default function BookingConfirmation({ result, onReset }) {
         <p className="mt-6 text-sm text-night/70">
           Need to change something? Call <a className="font-bold text-moss underline" href={tel(phones[0])}>{prettyLocal(phones[0])}</a> and quote your booking ID.
         </p>
-      )}
-
-      {fallback?.links?.length > 0 && (
-        <div className="mx-auto mt-8 max-w-lg rounded-2xl border border-amber-300 bg-amber-50 p-5 text-left">
-          <p className="flex items-center gap-2 font-bold text-amber-900"><MessageCircle className="h-5 w-5" aria-hidden="true" /> Development fallback: WhatsApp not connected</p>
-          <p className="mt-2 text-sm leading-relaxed text-amber-900/85">
-            The WhatsApp Business API is not configured on this server, so the team was <strong>not</strong> notified automatically.
-            These buttons open WhatsApp with your booking message filled in — <strong>you still have to press Send</strong> in WhatsApp.
-          </p>
-          <div className="mt-4 grid gap-2">
-            {fallback.links.map((l) => (
-              <a key={l.recipient} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-dark btn-sm justify-start">
-                <Phone className="h-4 w-4 text-lime" aria-hidden="true" /> {l.label}
-              </a>
-            ))}
-          </div>
-        </div>
       )}
 
       <button type="button" onClick={onReset} className="btn btn-outline mt-8">Make another booking</button>

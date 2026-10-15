@@ -23,7 +23,7 @@ app.use(helmet({
       scriptSrc: ["'self'", 'https://www.gstatic.com'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'blob:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org'],
       connectSrc: ["'self'", 'https://*.googleapis.com'],
       frameAncestors: ["'none'"],
       objectSrc: ["'none'"],

@@ -9,15 +9,19 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
 
 export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-  const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  const { email, password, login_type = 'ADMIN' } = req.body;
+  const [rows] = await pool.query(`SELECT u.*, d.id AS driver_id, d.is_active AS driver_active
+    FROM users u LEFT JOIN drivers d ON d.user_id = u.id WHERE u.email = ?`, [email.toLowerCase()]);
   const user = rows[0];
   const ok = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
-  if (!user || !ok || !user.is_active) throw new AppError(401, 'Incorrect email or password.');
+  if (!user || !ok || !user.is_active || (user.role === 'DRIVER' && (!user.driver_id || !user.driver_active))) throw new AppError(401, 'Incorrect email or password.');
+  if ((login_type === 'DRIVER' && user.role !== 'DRIVER') || (login_type === 'ADMIN' && user.role === 'DRIVER')) {
+    throw new AppError(401, 'Choose the sign-in option for this account.');
+  }
 
   await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
   const token = jwt.sign({ sub: user.id, role: user.role }, config.jwt.secret, { algorithm: 'HS256', expiresIn: config.jwt.expiresIn });
-  res.json({ data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role } } });
+  res.json({ data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role, driver_id: user.driver_id || null } } });
 });
 
 export const me = (req, res) => res.json({ data: req.user });
