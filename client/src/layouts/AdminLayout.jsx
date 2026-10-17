@@ -24,6 +24,7 @@ const NAV = [
   { to: '/admin/users', label: 'Team accounts', icon: KeyRound, admin: true },
   { to: '/admin/settings', label: 'Settings', icon: Settings, admin: true },
 ];
+const PAGE_TITLES = Object.fromEntries(NAV.map(({ to, label }) => [to, label]));
 
 export default function AdminLayout() {
   const { user, checking, logout, isAdmin } = useAuth();
@@ -55,6 +56,10 @@ export default function AdminLayout() {
   }, [soundEnabled]);
 
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    const page = PAGE_TITLES[pathname] || 'Admin';
+    document.title = `${page} | Secure Eco Ride Admin`;
+  }, [pathname]);
 
   // Poll for new website bookings (the in-dashboard notification)
   useEffect(() => {

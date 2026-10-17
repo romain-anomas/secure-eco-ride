@@ -42,18 +42,20 @@ export function ErrorBox({ children }) {
 
 export function Modal({ title, onClose, children, wide = false }) {
   const ref = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     const prev = document.activeElement;
     ref.current?.focus();
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current(); };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; prev?.focus?.(); };
-  }, [onClose]);
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-night/60 p-0 sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl focus:outline-none sm:rounded-3xl sm:p-7 ${wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}>
+        className={`max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl focus:outline-none sm:max-h-[90dvh] sm:rounded-3xl sm:p-7 ${wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}>
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className="font-display text-xl font-black uppercase tracking-tight">{title}</h2>
           <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-night/10" aria-label="Close"><X className="h-5 w-5" /></button>
