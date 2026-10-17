@@ -2,7 +2,9 @@ import axios from 'axios';
 
 const TOKEN_KEY = 'ser_admin_token';
 
-export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 20000 });
+// A free Render API can take about a minute to wake after idling. Give its first
+// request enough time to finish instead of reporting a false connection failure.
+export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 90000 });
 
 /** Resolve API-hosted media paths against the configured API origin. */
 export function resolveAssetUrl(value) {
@@ -59,7 +61,8 @@ export function parseError(err) {
   let message = e?.message;
   if (!message) {
     if (err && !err.isAxiosError && err.message) message = err.message; // plain Error thrown by our own code
-    else if (err?.code === 'ECONNABORTED' || !err?.response) message = 'Cannot reach the server. Please check your connection or call us to book.';
+    else if (err?.code === 'ECONNABORTED' || err?.code === 'ETIMEDOUT') message = 'The server is taking longer than usual to respond. It may be starting up; please wait and try again.';
+    else if (!err?.response) message = 'Cannot reach the server. Please check your connection or call us to book.';
     else message = 'Something went wrong. Please try again.';
   }
   return { message, fields, status: err?.response?.status };
