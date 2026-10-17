@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2, Upload } from 'lucide-react';
-import { api, del, get, parseError, patch, post } from '../../services/api.js';
+import { api, del, get, parseError, patch, post, resolveAssetUrl } from '../../services/api.js';
 import { normalizePhone } from '../../utils/phone.js';
 import PhoneInput from '../PhoneInput.jsx';
+import ImagePreview from './ImagePreview.jsx';
 import { DEFAULT_PHONE_COUNTRY, splitStoredPhone } from '../../utils/phoneCountries.js';
 import useFetch from '../../hooks/useFetch.js';
 import { Empty, ErrorBox, Field, Modal, PageHeader, Spinner, TableWrap } from './ui.jsx';
@@ -102,7 +103,7 @@ function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
     try {
       const fd = new FormData(); fd.append('image', file);
       const res = await api.post('/uploads', fd);
-      set(name, res.data.data.url);
+      set(name, resolveAssetUrl(res.data.data.url));
     } catch (e) { setError(parseError(e).message); } finally { setUploading(false); }
   }
 
@@ -179,7 +180,7 @@ function FormModal({ title, endpoint, fields, row, onClose, onSaved }) {
                     </select>
                   ) : f.type === 'image' ? (
                     <div className="flex flex-wrap items-center gap-3">
-                      {values[f.name] && <img src={values[f.name]} alt="" className="h-16 w-24 rounded-lg border border-night/10 object-cover" />}
+                      {values[f.name] && <ImagePreview src={values[f.name]} className="h-16 w-24 rounded-lg border border-night/10 object-cover" />}
                       <label className="btn btn-outline btn-sm cursor-pointer"><Upload className="h-4 w-4" aria-hidden="true" /> {uploading ? 'Uploading…' : 'Upload image'}
                         <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" onChange={(e) => upload(f.name, e.target.files?.[0])} /></label>
                       {values[f.name] && <button type="button" className="text-sm font-semibold text-red-600" onClick={() => set(f.name, '')}>Remove</button>}

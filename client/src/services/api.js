@@ -4,6 +4,32 @@ const TOKEN_KEY = 'ser_admin_token';
 
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 20000 });
 
+/** Resolve API-hosted media paths against the configured API origin. */
+export function resolveAssetUrl(value) {
+  if (typeof value !== 'string' || !value) return value;
+  if (/^(?:https?:|data:|blob:)/i.test(value)) return value;
+  try {
+    const base = api.defaults.baseURL;
+    const origin = /^https?:\/\//i.test(base) ? base : window.location.origin;
+    return new URL(value, origin).toString();
+  } catch { return value; }
+}
+
+const ASSET_KEYS = new Set(['image_url', 'hero_image_url', 'logo_url']);
+function resolveAssets(value) {
+  if (Array.isArray(value)) { value.forEach(resolveAssets); return; }
+  if (!value || typeof value !== 'object') return;
+  Object.entries(value).forEach(([key, child]) => {
+    if (ASSET_KEYS.has(key) && typeof child === 'string') value[key] = resolveAssetUrl(child);
+    else resolveAssets(child);
+  });
+}
+
+api.interceptors.response.use((response) => {
+  resolveAssets(response.data);
+  return response;
+});
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => (t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY));
 

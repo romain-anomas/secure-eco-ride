@@ -387,6 +387,8 @@ Set these in the Render API service environment (never use `VITE_` for secrets):
 
 Use Render's production start command `npm start` from the `server` directory (it runs `node src/server.js`, not the watch server). On Vercel set `VITE_API_URL=https://secure-eco-ride.onrender.com/api` and `SITE_URL=https://secure-eco-ride.vercel.app`; redeploy after changing build variables. Keep the Vercel site and Render API on HTTPS. Socket.IO is not added in this stage.
 
+Vehicle and settings images are served from the API host. The client resolves saved `/uploads/...` paths against `VITE_API_URL`, so make sure that variable points to the API service and redeploy the Vercel client. The API writes uploads to `server/uploads` by default; on Render, attach a persistent disk and set `UPLOAD_DIR` to its mount path (for example `/var/data/uploads`) so uploaded images survive service restarts and deploys.
+
 ### Safe SMTP test
 
 After setting the SMTP variables in Render, sign in to the admin dashboard and use an authenticated admin session to call `POST https://secure-eco-ride.onrender.com/api/email/test` with `Authorization: Bearer <admin-token>`. The route sends a fixed test message only to `ADMIN_NOTIFICATION_EMAIL` and is admin-only. A `200` response means the SMTP relay accepted the message; check the recipient inbox and spam folder for actual delivery. A `503` response means configuration or delivery failed; inspect Render logs without printing secrets. SMTP failures are logged and never undo a saved booking.

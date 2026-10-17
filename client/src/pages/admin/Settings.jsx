@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Upload } from 'lucide-react';
-import { api, get, parseError, post, put } from '../../services/api.js';
+import { api, get, parseError, post, put, resolveAssetUrl } from '../../services/api.js';
 import { useSettings } from '../../context/SettingsContext.jsx';
 import { ErrorBox, PageHeader, Spinner } from '../../components/admin/ui.jsx';
+import ImagePreview from '../../components/admin/ImagePreview.jsx';
 
 const lines = (arr) => (Array.isArray(arr) ? arr.join('\n') : '');
 const toList = (s) => String(s).split(/\n|,/).map((x) => x.trim()).filter(Boolean);
@@ -19,13 +20,13 @@ function ImageField({ label, value, onChange, hint }) {
   async function upload(file) {
     if (!file) return;
     setBusy(true); setErr('');
-    try { const fd = new FormData(); fd.append('image', file); onChange((await api.post('/uploads', fd)).data.data.url); }
+    try { const fd = new FormData(); fd.append('image', file); onChange(resolveAssetUrl((await api.post('/uploads', fd)).data.data.url)); }
     catch (e) { setErr(parseError(e).message); } finally { setBusy(false); }
   }
   return (
     <F label={label} hint={hint}>
       <div className="flex flex-wrap items-center gap-3">
-        {value && <img src={value} alt="" className="h-16 max-w-[8rem] rounded-lg border border-night/10 bg-night/5 object-contain" />}
+        {value && <ImagePreview src={value} className="h-16 max-w-[8rem] rounded-lg border border-night/10 bg-night/5 object-contain" />}
         <label className="btn btn-outline btn-sm cursor-pointer"><Upload className="h-4 w-4" aria-hidden="true" /> {busy ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} /></label>
         {value && <button type="button" className="text-sm font-semibold text-red-600" onClick={() => onChange('')}>Remove</button>}
       </div>
