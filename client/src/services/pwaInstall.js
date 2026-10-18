@@ -4,7 +4,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     pendingInstallPrompt = event;
-    window.dispatchEvent(new Event('secure-eco-ride-pwa-installable'));
   });
 
   window.addEventListener('appinstalled', () => {
@@ -19,7 +18,6 @@ export async function promptToInstall() {
   const prompt = pendingInstallPrompt;
   if (!prompt) return null;
   pendingInstallPrompt = null;
-  window.dispatchEvent(new Event('secure-eco-ride-pwa-installable'));
   await prompt.prompt();
   return prompt.userChoice;
 }

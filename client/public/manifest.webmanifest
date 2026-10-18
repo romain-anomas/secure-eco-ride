@@ -2,7 +2,7 @@
   "id": "/admin/",
   "name": "Secure Eco Ride Admin",
   "short_name": "Eco Ride Admin",
-  "description": "Secure Eco Ride administrator dashboard for managing bookings and drivers.",
+  "description": "Manage Secure Eco Ride bookings and drivers.",
   "start_url": "/admin/",
   "scope": "/admin/",
   "display": "standalone",
