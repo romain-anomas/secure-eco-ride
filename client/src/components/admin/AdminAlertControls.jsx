@@ -20,6 +20,7 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const firebaseConfigIssue = firebaseClientConfigIssue();
 
   const refreshStatus = useCallback(async () => {
     let tokenHash;
@@ -38,6 +39,8 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
   async function enablePush() {
     setBusy(true); setError(''); setMessage('');
     try {
+      if (firebaseConfigIssue) throw new Error(firebaseConfigIssue);
+      if (pushStatus && !pushStatus.configured) throw new Error('Push notifications are not configured on the server yet.');
       const token = await enableFcmForThisDevice();
       await post('/push/devices', { token, device_name: deviceLabel() });
       await refreshStatus();
@@ -71,8 +74,6 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
     finally { setBusy(false); }
   }
 
-  const firebaseReady = isFirebaseClientConfigured();
-  const firebaseConfigIssue = firebaseClientConfigIssue();
   const permissionDenied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
   const thisDeviceRegistered = Boolean(pushStatus?.currentDeviceRegistered);
 
@@ -85,10 +86,9 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
             Enable alerts on each phone or computer. Booking pop-ups arrive when the dashboard is closed; when it is open, sound plays if enabled. Your device controls sound for background notifications.
           </p>
           <p className="mt-2 text-xs text-night/55" role="status">
-            {pushStatus?.configured
+            {!pushStatus ? 'Checking notification setup…' : pushStatus.configured
               ? `${pushStatus.registeredDevices} admin device${pushStatus.registeredDevices === 1 ? '' : 's'} registered${thisDeviceRegistered ? ' · this device is enabled' : ''}.`
-              : 'Firebase server setup is incomplete.'}
-            {!firebaseReady && ` ${firebaseConfigIssue}`}
+              : 'Push notifications are not configured on the server.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -107,7 +107,7 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
               <BellOff className="h-4 w-4" aria-hidden="true" /> {busy ? 'Working…' : 'Disable this device'}
             </button>
           ) : (
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy || !pushStatus?.configured || !firebaseReady || permissionDenied} onClick={enablePush}>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={enablePush}>
               <Bell className="h-4 w-4" aria-hidden="true" /> {busy ? 'Registering…' : 'Enable notifications'}
             </button>
           )}
