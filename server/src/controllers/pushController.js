@@ -1,6 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { badRequest, serviceUnavailable } from '../utils/AppError.js';
-import { adminTokenCount, hasAdminToken, isFcmConfigured, registerAdminToken, removeAdminToken } from '../services/pushService.js';
+import { adminTokenCount, hasAdminToken, isFcmConfigured, registerAdminToken, removeAdminToken, sendAdminTestPush } from '../services/pushService.js';
 
 export const status = asyncHandler(async (req, res) => {
   const hash = req.query.token_hash;
@@ -25,6 +25,11 @@ export const registerDevice = asyncHandler(async (req, res) => {
   }
   await registerAdminToken(req.user.id, token.trim(), deviceName?.trim());
   res.status(201).json({ data: { registered: true } });
+});
+
+export const sendTest = asyncHandler(async (req, res) => {
+  if (!isFcmConfigured()) throw serviceUnavailable('Push notifications are not configured on the server.');
+  res.json({ data: await sendAdminTestPush(req.user.id) });
 });
 
 export const removeDevice = asyncHandler(async (req, res) => {

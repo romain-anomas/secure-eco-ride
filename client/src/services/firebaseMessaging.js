@@ -9,13 +9,30 @@ export const firebaseClientConfig = {
 };
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
-export const isFirebaseClientConfigured = () => Boolean(
-  firebaseClientConfig.apiKey && firebaseClientConfig.projectId &&
-  firebaseClientConfig.messagingSenderId && firebaseClientConfig.appId && vapidKey,
-);
+export function firebaseClientConfigIssue() {
+  if (!firebaseClientConfig.apiKey || !firebaseClientConfig.projectId
+    || !firebaseClientConfig.messagingSenderId || !firebaseClientConfig.appId || !vapidKey) {
+    return 'Firebase web messaging settings are incomplete in this deployment.';
+  }
+  const appIdSender = firebaseClientConfig.appId.match(/^1:(\d+):web:/)?.[1];
+  if (!appIdSender || appIdSender !== firebaseClientConfig.messagingSenderId) {
+    return 'Firebase app ID and sender ID do not match. Use settings from the same Firebase Web App.';
+  }
+  return '';
+}
+
+export const isFirebaseClientConfigured = () => !firebaseClientConfigIssue();
+
+function explainInstallationsError(error) {
+  if (error?.code === 'installations/request-failed' || /INVALID_ARGUMENT/.test(error?.message || '')) {
+    return new Error('Firebase rejected the web config. In Vercel, use the API key, project ID, sender ID and app ID from the same Firebase Web App. Allow this site in API key restrictions, then redeploy.');
+  }
+  return error;
+}
 
 async function supportedMessaging() {
-  if (!isFirebaseClientConfigured()) throw new Error('Firebase web messaging is not configured for this client.');
+  const configIssue = firebaseClientConfigIssue();
+  if (configIssue) throw new Error(configIssue);
   if (!('serviceWorker' in navigator) || !('Notification' in window) || !(await isSupported())) {
     throw new Error('This browser does not support Firebase web push notifications.');
   }
@@ -38,7 +55,9 @@ export async function enableFcmForThisDevice() {
       : 'Notification permission was not granted.');
   }
   const registration = await messagingRegistration();
-  const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+  let token;
+  try { token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration }); }
+  catch (error) { throw explainInstallationsError(error); }
   if (!token) throw new Error('Firebase did not return a device token. Check the Firebase web push certificate.');
   return token;
 }

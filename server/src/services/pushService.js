@@ -64,6 +64,44 @@ export async function hasAdminToken(userId, hash) {
   return Boolean(row);
 }
 
+export async function sendAdminTestPush(userId) {
+  if (!messaging) throw new Error(setupError || 'Firebase Cloud Messaging is unavailable.');
+  const [devices] = await pool.query(
+    `SELECT t.id, t.token FROM admin_push_tokens t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.user_id = ? AND u.role = 'ADMIN' AND u.is_active = 1`,
+    [userId],
+  );
+  if (!devices.length) return { registered: 0, sent: 0, failed: 0 };
+
+  let sent = 0;
+  let failed = 0;
+  for (let start = 0; start < devices.length; start += 500) {
+    const batch = devices.slice(start, start + 500);
+    const response = await messaging.sendEachForMulticast({
+      tokens: batch.map((device) => device.token),
+      data: {
+        title: 'Secure Eco Ride test alert',
+        body: 'Booking alerts are reaching this device.',
+        bookingId: `test-${Date.now()}`,
+        url: '/admin/bookings',
+      },
+      webpush: { headers: { Urgency: 'high', TTL: '60' } },
+    });
+    sent += response.successCount;
+    failed += response.failureCount;
+    for (let i = 0; i < response.responses.length; i += 1) {
+      const result = response.responses[i];
+      if (result.error && INVALID_TOKEN_CODES.has(result.error.code)) {
+        await pool.query('DELETE FROM admin_push_tokens WHERE id = ?', [batch[i].id]);
+      } else if (result.error) {
+        console.error(`[fcm] test alert failed code=${result.error.code || 'send_failed'}`);
+      }
+    }
+  }
+  return { registered: devices.length, sent, failed };
+}
+
 function pickupLabel(booking) {
   const date = booking.pickup_date instanceof Date
     ? booking.pickup_date.toISOString().slice(0, 10)

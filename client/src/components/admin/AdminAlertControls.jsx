@@ -5,6 +5,7 @@ import {
   enableFcmForThisDevice,
   getExistingFcmToken,
   hashFcmToken,
+  firebaseClientConfigIssue,
   isFirebaseClientConfigured,
   removeFcmToken,
 } from '../../services/firebaseMessaging.js';
@@ -59,7 +60,19 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
     finally { setBusy(false); }
   }
 
+  async function sendTestAlert() {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const { data } = await post('/push/test');
+      if (!data.registered) setError('No devices are registered. Enable notifications on this phone or computer first.');
+      else if (!data.sent) setError(`The test alert could not be delivered (${data.failed} failed). Check Firebase server credentials.`);
+      else setMessage(`Test alert sent to ${data.sent} device${data.sent === 1 ? '' : 's'}.`);
+    } catch (err) { setError(parseError(err).message); }
+    finally { setBusy(false); }
+  }
+
   const firebaseReady = isFirebaseClientConfigured();
+  const firebaseConfigIssue = firebaseClientConfigIssue();
   const permissionDenied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
   const thisDeviceRegistered = Boolean(pushStatus?.currentDeviceRegistered);
 
@@ -69,13 +82,13 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
         <div>
           <h2 className="font-display text-lg font-black uppercase">New booking alerts</h2>
           <p className="mt-1 max-w-2xl text-sm text-night/65">
-            Enable notifications on each admin device. Registered devices receive booking alerts even when you are signed out; background ringtone and vibration follow your phone/browser notification settings. Dashboard sound plays only while it is open. **Test sound** unlocks dashboard audio when required.
+            Enable alerts on each phone or computer. Booking pop-ups arrive when the dashboard is closed; when it is open, sound plays if enabled. Your device controls sound for background notifications.
           </p>
           <p className="mt-2 text-xs text-night/55" role="status">
             {pushStatus?.configured
               ? `${pushStatus.registeredDevices} admin device${pushStatus.registeredDevices === 1 ? '' : 's'} registered${thisDeviceRegistered ? ' · this device is enabled' : ''}.`
               : 'Firebase server setup is incomplete.'}
-            {!firebaseReady && ' Firebase web settings are missing from this client build.'}
+            {!firebaseReady && ` ${firebaseConfigIssue}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -86,6 +99,9 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
           <button type="button" className="btn btn-outline btn-sm" onClick={onTestSound}>
             Test sound
           </button>
+          {thisDeviceRegistered && <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={sendTestAlert}>
+            <Bell className="h-4 w-4" aria-hidden="true" /> {busy ? 'Sending…' : 'Test alert'}
+          </button>}
           {thisDeviceRegistered ? (
             <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={disablePush}>
               <BellOff className="h-4 w-4" aria-hidden="true" /> {busy ? 'Working…' : 'Disable this device'}

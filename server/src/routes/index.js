@@ -32,6 +32,7 @@ router.get('/bookings/unseen-count', authenticate, staffOrAdmin, bookings.unseen
 router.post('/email/test', authenticate, adminOnly, bookings.testEmail);
 router.get('/push/status', authenticate, adminOnly, push.status);
 router.post('/push/devices', authenticate, adminOnly, push.registerDevice);
+router.post('/push/test', authenticate, adminOnly, push.sendTest);
 router.delete('/push/devices', authenticate, adminOnly, push.removeDevice);
 router.get('/bookings/:id', authenticate, staffOrAdmin, id, bookings.getBooking);
 router.post('/bookings/:id/send-update', authenticate, staffOrAdmin, id, validate(S.dispatchSchema), bookings.sendBookingUpdate);
