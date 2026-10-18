@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { get } from '../services/api.js';
 import Logo from '../components/Logo.jsx';
 import { Spinner } from '../components/admin/ui.jsx';
-import { enableBookingSound, playBookingSound, unlockBookingSound } from '../utils/bookingSound.js';
+import { enableBookingSound, playBookingSound, stopBookingSound, unlockBookingSound } from '../utils/bookingSound.js';
 import { listenForFcmMessages, showFcmNotification } from '../services/firebaseMessaging.js';
 import AdminAlertControls from '../components/admin/AdminAlertControls.jsx';
 import AdminPwaInstall from '../components/admin/AdminPwaInstall.jsx';
@@ -34,6 +34,11 @@ export default function AdminLayout() {
   const [unseen, setUnseen] = useState(0);
   const [banner, setBanner] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('ser_booking_sound') === 'on');
+  const [soundActive, setSoundActive] = useState(false);
+  const [lastNotification, setLastNotification] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ser_last_booking_alert') || 'null'); }
+    catch { return null; }
+  });
   const soundEnabledRef = useRef(soundEnabled);
   const last = useRef(null);
   const polledBookingIds = useRef(new Set());
@@ -59,9 +64,28 @@ export default function AdminLayout() {
   }, [soundEnabled]);
 
   useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => { stopBookingSound(); setSoundActive(false); }, [pathname]);
   useEffect(() => {
     document.title = `${currentPage} | Secure Eco Ride Admin`;
   }, [currentPage]);
+
+  useEffect(() => {
+    const onServiceWorkerMessage = (event) => {
+      if (event.data?.type === 'SER_NOTIFICATION_CLICKED') {
+        stopBookingSound();
+        setSoundActive(false);
+        setBanner('');
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', onServiceWorkerMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onServiceWorkerMessage);
+  }, []);
+
+  function rememberNotification(title, body) {
+    const item = { title, body, receivedAt: new Date().toISOString() };
+    setLastNotification(item);
+    try { localStorage.setItem('ser_last_booking_alert', JSON.stringify(item)); } catch { /* storage can be disabled */ }
+  }
 
   // Poll for new website bookings (the in-dashboard notification)
   useEffect(() => {
@@ -78,7 +102,14 @@ export default function AdminLayout() {
           notAlerted.forEach((id) => alertedBookingIds.current.add(String(id)));
           if (notAlerted.length) {
             setBanner(`${notAlerted.length} new booking${notAlerted.length === 1 ? '' : 's'} received`);
-            if (soundEnabledRef.current) playBookingSound();
+            if (soundEnabledRef.current) {
+              playBookingSound(
+                () => setSoundActive(false),
+                () => setBanner('Booking sound was blocked. Interact with this dashboard and enable sound.'),
+                () => setSoundActive(true),
+              );
+            }
+            rememberNotification('New Ride Booking!', `${notAlerted.length} new booking${notAlerted.length === 1 ? '' : 's'} received`);
           }
         }
         (data.booking_ids || []).forEach((id) => polledBookingIds.current.add(String(id)));
@@ -99,7 +130,14 @@ export default function AdminLayout() {
       alertedBookingIds.current.add(String(data.bookingId));
       showFcmNotification(data).catch((err) => console.error('[admin] could not display booking notification:', err.message));
       setBanner(`${data.title || 'New Ride Booking!'}${data.body ? ` — ${data.body}` : ''}`);
-      if (soundEnabledRef.current) playBookingSound();
+      rememberNotification(data.title || 'New Ride Booking!', data.body || 'A new booking has arrived.');
+      if (soundEnabledRef.current) {
+        playBookingSound(
+          () => setSoundActive(false),
+          () => setBanner('Booking sound was blocked. Interact with this dashboard and enable sound.'),
+          () => setSoundActive(true),
+        );
+      }
     }).then((stop) => {
       if (stopped) stop();
       else unsubscribe = stop;
@@ -109,6 +147,8 @@ export default function AdminLayout() {
 
   async function toggleSound() {
     if (soundEnabled) {
+      stopBookingSound();
+      setSoundActive(false);
       localStorage.removeItem('ser_booking_sound');
       setSoundEnabled(false);
       return;
@@ -125,6 +165,8 @@ export default function AdminLayout() {
   async function testSound() {
     try {
       await enableBookingSound();
+      setSoundActive(true);
+      window.setTimeout(() => setSoundActive(false), 1500);
       if (!soundEnabled) {
         localStorage.setItem('ser_booking_sound', 'on');
         setSoundEnabled(true);
@@ -181,11 +223,14 @@ export default function AdminLayout() {
 
       {banner && (
         <div className="flex items-center justify-between gap-3 bg-leaf px-4 py-2.5 text-sm font-bold text-night lg:px-8" role="status">
-          <Link to="/admin/bookings" onClick={() => setBanner('')} className="underline">{banner} — open bookings</Link>
-          <button type="button" onClick={() => setBanner('')} aria-label="Dismiss"><X className="h-4 w-4" /></button>
+          <Link to="/admin/bookings" onClick={() => { stopBookingSound(); setSoundActive(false); setBanner(''); }} className="underline">{banner} — open bookings</Link>
+          <div className="flex shrink-0 items-center gap-3">
+            {soundActive && <button type="button" onClick={() => { stopBookingSound(); setSoundActive(false); }} className="underline">Stop sound</button>}
+            <button type="button" onClick={() => { stopBookingSound(); setSoundActive(false); setBanner(''); }} aria-label="Acknowledge alert"><X className="h-4 w-4" /></button>
+          </div>
         </div>
       )}
-      {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
+      {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} soundActive={soundActive} lastNotification={lastNotification} onStopSound={() => { stopBookingSound(); setSoundActive(false); }} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
       <main className="p-3 sm:p-4 lg:p-8"><Outlet /></main>
     </div>
   );

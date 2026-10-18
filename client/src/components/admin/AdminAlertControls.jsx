@@ -15,7 +15,7 @@ function deviceLabel() {
   return `${platform} browser`.slice(0, 120);
 }
 
-export default function AdminAlertControls({ soundEnabled, onToggleSound, onTestSound }) {
+export default function AdminAlertControls({ soundEnabled, soundActive, lastNotification, onStopSound, onToggleSound, onTestSound }) {
   const [pushStatus, setPushStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -76,6 +76,7 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
 
   const permissionDenied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
   const thisDeviceRegistered = Boolean(pushStatus?.currentDeviceRegistered);
+  const permissionStatus = typeof Notification === 'undefined' ? 'Unsupported' : Notification.permission;
 
   return (
     <section className="admin-card mb-5" aria-label="Administrator booking alerts">
@@ -83,13 +84,14 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
         <div>
           <h2 className="font-display text-lg font-black uppercase">New booking alerts</h2>
           <p className="mt-1 max-w-2xl text-sm text-night/65">
-            Register each phone or computer once. It will receive new booking alerts even after you sign out. Keep notifications allowed on the device; background alert sound follows its settings.
+            Register each supported phone or computer once. New booking alerts can arrive while you are signed out if the browser and device allow background notifications. Background sound follows device settings.
           </p>
           <p className="mt-2 text-xs text-night/55" role="status">
             {!pushStatus ? 'Checking notification setup…' : pushStatus.configured
-              ? `${pushStatus.registeredDevices} admin device${pushStatus.registeredDevices === 1 ? '' : 's'} registered${thisDeviceRegistered ? ' · this device is enabled' : ''}.`
+              ? `${pushStatus.registeredDevices} admin device${pushStatus.registeredDevices === 1 ? '' : 's'} registered${thisDeviceRegistered ? ' · this device is enabled' : ''} · browser permission: ${permissionStatus}.`
               : 'Push notifications are not configured on the server.'}
           </p>
+          {lastNotification && <p className="mt-1 text-xs text-night/55" role="status">Last alert: {lastNotification.title} · {new Date(lastNotification.receivedAt).toLocaleString()}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-outline btn-sm" onClick={onToggleSound}>
@@ -99,8 +101,11 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
           <button type="button" className="btn btn-outline btn-sm" onClick={onTestSound}>
             Test sound
           </button>
+          {soundActive && <button type="button" className="btn btn-outline btn-sm" onClick={onStopSound}>
+            <VolumeX className="h-4 w-4" aria-hidden="true" /> Stop sound
+          </button>}
           {thisDeviceRegistered && <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={sendTestAlert}>
-            <Bell className="h-4 w-4" aria-hidden="true" /> {busy ? 'Sending…' : 'Test alert'}
+            <Bell className="h-4 w-4" aria-hidden="true" /> {busy ? 'Sending…' : 'Test notification'}
           </button>}
           {thisDeviceRegistered ? (
             <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={disablePush}>

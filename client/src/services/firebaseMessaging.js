@@ -81,7 +81,23 @@ export async function removeFcmToken() {
 export async function listenForFcmMessages(callback) {
   if (!isFirebaseClientConfigured()) return () => {};
   const messaging = await supportedMessaging();
-  return onMessage(messaging, (payload) => callback(payload.data || {}));
+  return onMessage(messaging, (payload) => {
+    const data = payload.data || {};
+    if (!claimForegroundMessage(data.bookingId)) return;
+    callback(data);
+  });
+}
+
+function claimForegroundMessage(id) {
+  if (!id) return true;
+  const key = `ser_fcm_foreground_${id}`;
+  try {
+    const now = Date.now();
+    const previous = Number(localStorage.getItem(key) || 0);
+    if (previous && now - previous < 24 * 60 * 60 * 1000) return false;
+    localStorage.setItem(key, String(now));
+  } catch { /* storage may be unavailable; each open tab still handles its message */ }
+  return true;
 }
 
 export async function showFcmNotification(data = {}) {

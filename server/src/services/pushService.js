@@ -128,12 +128,13 @@ function pickupLabel(booking) {
 
 function bookingPayload(booking) {
   const details = [
+    booking.customer_name,
     booking.reference,
     [booking.pickup_location, booking.destination].filter(Boolean).join(' → '),
     pickupLabel(booking),
   ].filter(Boolean);
   return {
-    title: 'New Ride Booking!',
+    title: '🚗 New Ride Booking!',
     body: details.join(' · ').slice(0, 900),
     bookingId: String(booking.id),
     url: new URL(`/admin/bookings/${booking.id}`, config.clientUrl).toString(),
