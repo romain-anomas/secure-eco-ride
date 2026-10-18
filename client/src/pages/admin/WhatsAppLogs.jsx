@@ -57,6 +57,22 @@ export default function WhatsAppLogs() {
 
       {logs.loading && !logs.data?.length ? <Spinner /> : !logs.data?.length ? <Empty>No WhatsApp activity yet.</Empty> : (
         <>
+          <ul className="space-y-3 sm:hidden">
+            {logs.data.map((l) => <li key={l.id} className="admin-card !p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-night/50">{l.reference || 'Booking update'}</p><p className="mt-1 break-all text-sm font-semibold">{l.recipient}</p></div>
+                <Badge value={l.status} />
+              </div>
+              <p className="mt-2 text-xs text-night/55">{formatDateTime(l.created_at)}</p>
+              <details className="mt-3 rounded-xl bg-mist p-3 text-sm">
+                <summary className="cursor-pointer font-semibold text-moss">View message</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-xs">{l.message}</pre>
+              </details>
+              {l.error && <p className="mt-3 break-words text-xs text-red-700">{l.error}</p>}
+              {l.status !== 'SENT' && <button type="button" className="btn btn-outline btn-sm mt-3 w-full" disabled={busy === `r${l.id}`} onClick={() => retry(l.id)}>Retry</button>}
+            </li>)}
+          </ul>
+          <div className="hidden sm:block">
           <TableWrap>
             <thead className="bg-mist"><tr>{['Booking ID', 'Recipient', 'Message', 'Status', 'Error', 'Date', ''].map((h) => <th key={h} className="th">{h}</th>)}</tr></thead>
             <tbody className="divide-y divide-night/5">
@@ -73,6 +89,7 @@ export default function WhatsAppLogs() {
               ))}
             </tbody>
           </TableWrap>
+          </div>
           <Pager page={page} limit={logs.meta?.limit || 50} total={logs.meta?.total || 0} onPage={setPage} />
         </>
       )}

@@ -21,9 +21,9 @@ export function Badge({ value, label }) {
 
 export function PageHeader({ title, subtitle, children }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-      <div><h1 className="font-display text-2xl font-black uppercase tracking-tight sm:text-3xl">{title}</h1>{subtitle && <p className="mt-1 text-sm text-night/60">{subtitle}</p>}</div>
-      <div className="flex flex-wrap gap-2">{children}</div>
+    <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0"><h1 className="break-words font-display text-2xl font-black uppercase tracking-tight sm:text-3xl">{title}</h1>{subtitle && <p className="mt-1 text-sm text-night/60">{subtitle}</p>}</div>
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{children}</div>
     </div>
   );
 }
@@ -81,16 +81,16 @@ export function Pager({ page, limit, total, onPage }) {
   const pages = Math.max(1, Math.ceil(total / limit));
   if (pages <= 1) return null;
   return (
-    <div className="mt-4 flex items-center justify-between text-sm">
-      <span className="text-night/60">{total} results · page {page} of {pages}</span>
+    <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-center text-night/60 sm:text-left">{total} results · page {page} of {pages}</span>
       <div className="flex gap-2">
-        <button type="button" className="btn btn-outline btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
-        <button type="button" className="btn btn-outline btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
+        <button type="button" className="btn btn-outline btn-sm flex-1 sm:flex-none" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
+        <button type="button" className="btn btn-outline btn-sm flex-1 sm:flex-none" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
       </div>
     </div>
   );
 }
 
 export function TableWrap({ children }) {
-  return <div className="overflow-x-auto rounded-2xl border border-night/10 bg-white"><table className="w-full min-w-[720px] divide-y divide-night/10">{children}</table></div>;
+  return <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-night/10 bg-white"><table className="w-full min-w-[720px] divide-y divide-night/10">{children}</table></div>;
 }

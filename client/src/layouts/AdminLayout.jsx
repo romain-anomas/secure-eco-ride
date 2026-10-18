@@ -38,6 +38,8 @@ export default function AdminLayout() {
   const last = useRef(null);
   const polledBookingIds = useRef(new Set());
   const alertedBookingIds = useRef(new Set());
+  const currentPage = PAGE_TITLES[pathname]
+    || (pathname.startsWith('/admin/bookings/') ? 'Booking details' : 'Admin');
 
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
@@ -58,9 +60,8 @@ export default function AdminLayout() {
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
-    const page = PAGE_TITLES[pathname] || 'Admin';
-    document.title = `${page} | Secure Eco Ride Admin`;
-  }, [pathname]);
+    document.title = `${currentPage} | Secure Eco Ride Admin`;
+  }, [currentPage]);
 
   // Poll for new website bookings (the in-dashboard notification)
   useEffect(() => {
@@ -166,10 +167,11 @@ export default function AdminLayout() {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">{sidebar}</aside>
       {open && <div className="fixed inset-0 z-40 lg:hidden"><div className="absolute inset-0 bg-night/60" onClick={() => setOpen(false)} /><aside className="absolute inset-y-0 left-0 w-72 max-w-[85%]">{sidebar}</aside></div>}
 
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-night/10 bg-white/90 px-4 backdrop-blur lg:px-8">
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-night/10 bg-white/95 px-3 backdrop-blur sm:px-4 lg:px-8">
         <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-night/15 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+        <span className="min-w-0 flex-1 truncate px-2 text-sm font-bold text-night lg:hidden">{currentPage}</span>
         <span className="hidden text-sm text-night/60 lg:block">Secure Eco Ride · Admin</span>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isAdmin && <AdminPwaInstall />}
           <Link to="/admin/bookings" className="relative grid h-10 w-10 place-items-center rounded-full border border-night/15 hover:border-leaf" aria-label={`${unseen} new bookings`}>
             <Bell className="h-5 w-5" />{unseen > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-leaf px-1 text-[11px] font-black text-night">{unseen}</span>}
@@ -184,7 +186,7 @@ export default function AdminLayout() {
         </div>
       )}
       {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
-      <main className="p-4 lg:p-8"><Outlet /></main>
+      <main className="p-3 sm:p-4 lg:p-8"><Outlet /></main>
     </div>
   );
 }

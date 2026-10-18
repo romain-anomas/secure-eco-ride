@@ -20,6 +20,8 @@ export default function ResourceManager({ title, subtitle, endpoint, listParams,
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
+  const titleHeaders = ['Name', 'Driver', 'Vehicle', 'Service', 'Rule', 'Customer'];
+  const titleColumn = titleHeaders.includes(columns[0]?.header);
 
   async function remove(row) {
     setActionError('');
@@ -35,23 +37,49 @@ export default function ResourceManager({ title, subtitle, endpoint, listParams,
       {notice && <p className="mb-4 rounded-xl bg-green-50 p-3 text-sm font-medium text-green-800" role="status">{notice}</p>}
       <ErrorBox>{actionError}</ErrorBox>
       {loading && !data?.length ? <Spinner /> : error ? <ErrorBox>{parseError(error).message}</ErrorBox> : !data?.length ? <Empty>{empty}</Empty> : (
-        <TableWrap>
-          <thead className="bg-mist"><tr>{columns.map((c) => <th key={c.header} className="th">{c.header}</th>)}<th className="th text-right">Actions</th></tr></thead>
-          <tbody className="divide-y divide-night/5">
-            {data.map((row) => (
-              <tr key={row.id} className="hover:bg-mist/60">
-                {columns.map((c) => <td key={c.header} className="td">{c.render(row)}</td>)}
-                <td className="td text-right">
-                  <div className="flex justify-end gap-1.5">
-                    {renderRowAction?.(row, { reload, setNotice, setActionError })}
-                    <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 hover:border-leaf" onClick={() => { setNotice(''); setEditing(row); }} aria-label={`Edit ${itemName}`}><Pencil className="h-4 w-4" /></button>
-                    {canDelete && <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 text-red-600 hover:border-red-500" onClick={() => setConfirmDelete(row)} aria-label={`Delete ${itemName}`}><Trash2 className="h-4 w-4" /></button>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
+        <>
+          <ul className="space-y-3 sm:hidden">
+            {data.map((row) => {
+              const heading = row.name || row.customer_name || row.reference || `${itemName} #${row.id}`;
+              return <li key={row.id} className="admin-card !p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="min-w-0 break-words text-base font-bold">{heading}</h2>
+                  <span className="shrink-0 text-xs text-night/45">#{row.id}</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-night/10 pt-3 text-sm">
+                  {columns.map((column, index) => titleColumn && index === 0 ? null : <div key={column.header} className="min-w-0">
+                    <dt className="text-xs font-semibold text-night/50">{column.header}</dt>
+                    <dd className="mt-0.5 break-words font-medium">{column.render(row)}</dd>
+                  </div>)}
+                </dl>
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-night/10 pt-3">
+                  {renderRowAction?.(row, { reload, setNotice, setActionError })}
+                  <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-night/15 hover:border-leaf" onClick={() => { setNotice(''); setEditing(row); }} aria-label={`Edit ${itemName}`}><Pencil className="h-4 w-4" /></button>
+                  {canDelete && <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-night/15 text-red-600 hover:border-red-500" onClick={() => setConfirmDelete(row)} aria-label={`Delete ${itemName}`}><Trash2 className="h-4 w-4" /></button>}
+                </div>
+              </li>;
+            })}
+          </ul>
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-mist"><tr>{columns.map((c) => <th key={c.header} className="th">{c.header}</th>)}<th className="th text-right">Actions</th></tr></thead>
+              <tbody className="divide-y divide-night/5">
+                {data.map((row) => (
+                  <tr key={row.id} className="hover:bg-mist/60">
+                    {columns.map((c) => <td key={c.header} className="td">{c.render(row)}</td>)}
+                    <td className="td text-right">
+                      <div className="flex justify-end gap-1.5">
+                        {renderRowAction?.(row, { reload, setNotice, setActionError })}
+                        <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 hover:border-leaf" onClick={() => { setNotice(''); setEditing(row); }} aria-label={`Edit ${itemName}`}><Pencil className="h-4 w-4" /></button>
+                        {canDelete && <button type="button" className="grid h-9 w-9 place-items-center rounded-full border border-night/15 text-red-600 hover:border-red-500" onClick={() => setConfirmDelete(row)} aria-label={`Delete ${itemName}`}><Trash2 className="h-4 w-4" /></button>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </TableWrap>
+          </div>
+        </>
       )}
 
       {editing && (
