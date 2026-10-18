@@ -1,13 +1,17 @@
 {
+  "id": "/admin/",
   "name": "Secure Eco Ride Admin",
-  "short_name": "Eco Ride",
-  "start_url": "/admin",
-  "scope": "/",
+  "short_name": "Eco Ride Admin",
+  "description": "Secure Eco Ride administrator dashboard for managing bookings and drivers.",
+  "start_url": "/admin/",
+  "scope": "/admin/",
   "display": "standalone",
-  "background_color": "#f4f7f3",
+  "background_color": "#F5F7F5",
   "theme_color": "#0B0F10",
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import './services/pwaInstall.js';
 import './index.css';
 
 createRoot(document.getElementById('root')).render(

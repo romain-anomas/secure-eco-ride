@@ -8,6 +8,7 @@ import { Spinner } from '../components/admin/ui.jsx';
 import { enableBookingSound, playBookingSound, unlockBookingSound } from '../utils/bookingSound.js';
 import { listenForFcmMessages, showFcmNotification } from '../services/firebaseMessaging.js';
 import AdminAlertControls from '../components/admin/AdminAlertControls.jsx';
+import AdminPwaInstall from '../components/admin/AdminPwaInstall.jsx';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -168,9 +169,12 @@ export default function AdminLayout() {
       <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-night/10 bg-white/90 px-4 backdrop-blur lg:px-8">
         <button type="button" className="grid h-10 w-10 place-items-center rounded-full border border-night/15 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="h-5 w-5" /></button>
         <span className="hidden text-sm text-night/60 lg:block">Secure Eco Ride · Admin</span>
-        <Link to="/admin/bookings" className="relative grid h-10 w-10 place-items-center rounded-full border border-night/15 hover:border-leaf" aria-label={`${unseen} new bookings`}>
-          <Bell className="h-5 w-5" />{unseen > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-leaf px-1 text-[11px] font-black text-night">{unseen}</span>}
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && <AdminPwaInstall />}
+          <Link to="/admin/bookings" className="relative grid h-10 w-10 place-items-center rounded-full border border-night/15 hover:border-leaf" aria-label={`${unseen} new bookings`}>
+            <Bell className="h-5 w-5" />{unseen > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-leaf px-1 text-[11px] font-black text-night">{unseen}</span>}
+          </Link>
+        </div>
       </header>
 
       {banner && (
