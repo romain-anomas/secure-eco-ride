@@ -1,11 +1,16 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { deleteToken, getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 
+const webAppId = import.meta.env.VITE_FIREBASE_APP_ID || '';
+const senderIdFromAppId = webAppId.match(/^1:(\d+):web:/)?.[1] || '';
+
 export const firebaseClientConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  // The Firebase web app ID embeds its project sender number. Prefer it so a
+  // stale duplicate Vercel variable cannot create an internally mixed config.
+  messagingSenderId: senderIdFromAppId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: webAppId,
 };
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
@@ -14,9 +19,8 @@ export function firebaseClientConfigIssue() {
     || !firebaseClientConfig.messagingSenderId || !firebaseClientConfig.appId || !vapidKey) {
     return 'Firebase web messaging settings are incomplete in this deployment.';
   }
-  const appIdSender = firebaseClientConfig.appId.match(/^1:(\d+):web:/)?.[1];
-  if (!appIdSender || appIdSender !== firebaseClientConfig.messagingSenderId) {
-    return 'Firebase app ID and sender ID do not match. Use settings from the same Firebase Web App.';
+  if (!senderIdFromAppId) {
+    return 'Firebase app ID is not a valid web app ID. Copy it from Firebase Project settings.';
   }
   return '';
 }
@@ -25,7 +29,7 @@ export const isFirebaseClientConfigured = () => !firebaseClientConfigIssue();
 
 function explainInstallationsError(error) {
   if (error?.code === 'installations/request-failed' || /INVALID_ARGUMENT/.test(error?.message || '')) {
-    return new Error('Firebase rejected the web config. In Vercel, use the API key, project ID, sender ID and app ID from the same Firebase Web App. Allow this site in API key restrictions, then redeploy.');
+    return new Error('Firebase rejected the web config. In Vercel, make sure the API key and project ID match this Firebase Web App. Allow this site in API key restrictions, then redeploy.');
   }
   return error;
 }

@@ -80,13 +80,29 @@ export async function sendAdminTestPush(userId) {
     const batch = devices.slice(start, start + 500);
     const response = await messaging.sendEachForMulticast({
       tokens: batch.map((device) => device.token),
+      notification: {
+        title: 'Secure Eco Ride test alert',
+        body: 'Booking alerts are reaching this device.',
+      },
       data: {
         title: 'Secure Eco Ride test alert',
         body: 'Booking alerts are reaching this device.',
         bookingId: `test-${Date.now()}`,
         url: '/admin/bookings',
       },
-      webpush: { headers: { Urgency: 'high', TTL: '60' } },
+      webpush: {
+        headers: { Urgency: 'high', TTL: '60' },
+        notification: {
+          icon: '/pwa-192.png',
+          badge: '/pwa-192.png',
+          tag: `secure-eco-ride-test-${Date.now()}`,
+          renotify: true,
+          silent: false,
+          vibrate: [250, 100, 250],
+          requireInteraction: true,
+        },
+        fcmOptions: { link: new URL('/admin/bookings', config.clientUrl).toString() },
+      },
     });
     sent += response.successCount;
     failed += response.failureCount;
@@ -129,7 +145,7 @@ const INVALID_TOKEN_CODES = new Set([
   'messaging/invalid-registration-token',
 ]);
 
-/** Sends one data-only FCM message per admin device, with a DB idempotency key per booking/device. */
+/** Sends one system-notification FCM message per admin device, idempotent per booking/device. */
 export async function sendBookingPush(booking) {
   if (!messaging) return;
   const [devices] = await pool.query(
@@ -154,8 +170,21 @@ export async function sendBookingPush(booking) {
     try {
       const response = await messaging.sendEachForMulticast({
         tokens: batch.map((device) => device.token),
+        notification: { title: payload.title, body: payload.body },
         data: payload,
-        webpush: { headers: { Urgency: 'high', TTL: '2419200' } },
+        webpush: {
+          headers: { Urgency: 'high', TTL: '2419200' },
+          notification: {
+            icon: '/pwa-192.png',
+            badge: '/pwa-192.png',
+            tag: `booking-${booking.id}`,
+            renotify: true,
+            silent: false,
+            vibrate: [250, 100, 250, 100, 400],
+            requireInteraction: true,
+          },
+          fcmOptions: { link: payload.url },
+        },
       });
       for (let i = 0; i < response.responses.length; i += 1) {
         const device = batch[i];

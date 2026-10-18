@@ -83,7 +83,7 @@ export default function AdminAlertControls({ soundEnabled, onToggleSound, onTest
         <div>
           <h2 className="font-display text-lg font-black uppercase">New booking alerts</h2>
           <p className="mt-1 max-w-2xl text-sm text-night/65">
-            Enable alerts on each phone or computer. Booking pop-ups arrive when the dashboard is closed; when it is open, sound plays if enabled. Your device controls sound for background notifications.
+            Register each phone or computer once. It will receive new booking alerts even after you sign out. Keep notifications allowed on the device; background alert sound follows its settings.
           </p>
           <p className="mt-2 text-xs text-night/55" role="status">
             {!pushStatus ? 'Checking notification setup…' : pushStatus.configured

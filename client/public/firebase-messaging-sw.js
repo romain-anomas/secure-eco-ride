@@ -23,6 +23,9 @@ try {
     );
     firebase.initializeApp(firebaseConfig);
     firebase.messaging().onBackgroundMessage((payload) => {
+      // FCM displays notification-payload messages automatically in the system tray.
+      // Only show notifications here for legacy/data-only messages to avoid duplicates.
+      if (payload.notification) return;
       const data = payload.data || {};
       self.registration.showNotification(data.title || 'New Ride Booking!', {
         body: data.body || 'A new booking has arrived.',
