@@ -3,6 +3,7 @@ import { CalendarDays, Mail, MapPin, Phone, RefreshCw, Users } from 'lucide-reac
 import { get, patch, parseError } from '../services/api.js';
 import { Badge, ErrorBox, Spinner } from '../components/admin/ui.jsx';
 import BookingLocationMap from '../components/admin/BookingLocationMap.jsx';
+import { useSearchParams } from 'react-router-dom';
 
 function dateLabel(date, time) {
   if (!date) return 'Schedule not set';
@@ -11,6 +12,8 @@ function dateLabel(date, time) {
 }
 
 export default function DriverDashboard() {
+  const [searchParams] = useSearchParams();
+  const selectedBookingId = searchParams.get('bookingId');
   const [bookings, setBookings] = useState([]);
   const [availability, setAvailability] = useState('OFFLINE');
   const [loading, setLoading] = useState(true);
@@ -28,6 +31,15 @@ export default function DriverDashboard() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const onAssignedJob = () => { load(); };
+    window.addEventListener('ser-driver-job-assigned', onAssignedJob);
+    return () => window.removeEventListener('ser-driver-job-assigned', onAssignedJob);
+  }, [load]);
+  useEffect(() => {
+    if (!selectedBookingId || !bookings.some((booking) => String(booking.id) === selectedBookingId)) return;
+    window.setTimeout(() => document.getElementById(`ride-${selectedBookingId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }, [bookings, selectedBookingId]);
 
   async function toggleAvailability() {
     setBusy(true); setError(''); setNotice('');
@@ -53,7 +65,7 @@ export default function DriverDashboard() {
     <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>
     {!bookings.length ? <div className="mt-8 rounded-2xl border border-night/10 bg-white p-8 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-leaf/20"><CalendarDays className="h-5 w-5" /></div><h2 className="mt-3 font-bold">No assigned rides yet</h2><p className="mt-1 text-sm text-night/55">New jobs assigned by admin will appear here.</p></div> :
       <div className="mt-6 grid gap-4">
-        {bookings.map((ride) => <article key={ride.id} className="overflow-hidden rounded-2xl border border-night/10 bg-white shadow-sm">
+        {bookings.map((ride) => <article id={`ride-${ride.id}`} key={ride.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${String(ride.id) === selectedBookingId ? 'border-leaf ring-2 ring-leaf/35' : 'border-night/10'}`}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-night/5 bg-white px-4 py-4 sm:px-6"><div><p className="text-xs font-bold uppercase tracking-wider text-night/45">{ride.reference}</p><p className="mt-1 font-semibold">{dateLabel(ride.pickup_date, ride.pickup_time)}</p></div><Badge value={ride.status} /></div>
           <div className="grid gap-5 p-4 sm:grid-cols-2 sm:p-6">
             <section><h2 className="text-xs font-black uppercase tracking-wider text-night/45">Passenger</h2><p className="mt-2 text-lg font-bold">{ride.customer_name}</p><div className="mt-3 flex flex-wrap gap-2">{ride.customer_phone && <a className="btn btn-outline btn-sm" href={`tel:${ride.customer_phone}`}><Phone className="h-4 w-4" />Call</a>}{ride.customer_email && <a className="btn btn-outline btn-sm" href={`mailto:${ride.customer_email}`}><Mail className="h-4 w-4" />Email</a>}</div><p className="mt-3 flex items-center gap-2 text-sm text-night/60"><Users className="h-4 w-4" />{ride.passengers} passenger{ride.passengers === 1 ? '' : 's'}</p></section>

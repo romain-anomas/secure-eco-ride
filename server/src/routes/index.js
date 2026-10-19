@@ -65,6 +65,9 @@ router.post('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driv
 router.patch('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driverAccountUpdateSchema), driver.updateAccount);
 router.get('/driver/bookings', authenticate, driverOnly, driver.assignedBookings);
 router.patch('/driver/availability', authenticate, driverOnly, validate(S.driverAvailabilitySchema), driver.updateAvailability);
+router.get('/driver/push/status', authenticate, driverOnly, driver.pushStatus);
+router.post('/driver/push/devices', authenticate, driverOnly, driver.registerPushDevice);
+router.delete('/driver/push/devices', authenticate, driverOnly, driver.removePushDevice);
 
 // --------------------------------------------------------------- pricing
 const pricing = resourceHandlers(Pricing);

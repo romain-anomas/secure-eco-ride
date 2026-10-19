@@ -3,7 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { notFound } from '../utils/AppError.js';
 import * as bookings from '../services/bookingService.js';
 import { sendAdminBookingStatusEmail, sendBookingAdminEmail, sendCustomerBookingStatusEmail, sendTestEmail } from '../services/emailService.js';
-import { sendBookingPush } from '../services/pushService.js';
+import { sendBookingPush, sendDriverAssignmentPush } from '../services/pushService.js';
 
 const CUSTOMER_MESSAGE = 'Your booking has been received. Our team will contact you shortly.';
 
@@ -66,7 +66,11 @@ export const getBooking = asyncHandler(async (req, res) => {
 });
 
 export const sendBookingUpdate = asyncHandler(async (req, res) => {
-  const { booking, previousStatus } = await bookings.dispatchBookingUpdate(req.params.id, req.body, req.user.id);
+  const { booking, previousStatus, notificationEventId } = await bookings.dispatchBookingUpdate(req.params.id, req.body, req.user.id);
+  if (notificationEventId) {
+    sendDriverAssignmentPush(booking, notificationEventId)
+      .catch((err) => console.error(`[booking ${booking.reference}] driver push dispatch failed code=${err.code || 'unknown_error'}`));
+  }
   const [customerResult, adminResult] = await Promise.all([
     sendCustomerBookingStatusEmail(booking, previousStatus),
     sendAdminBookingStatusEmail(booking, previousStatus),

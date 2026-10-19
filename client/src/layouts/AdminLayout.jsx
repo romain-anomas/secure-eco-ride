@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, Bell, Car, ClipboardList, LayoutDashboard, LogOut, Menu, MessageCircle, MessageSquare, Settings, Tag, Truck, UserCheck, Users, X, Star, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { get } from '../services/api.js';
@@ -9,6 +9,7 @@ import { enableBookingSound, playBookingSound, stopBookingSound, unlockBookingSo
 import { listenForFcmMessages, showFcmNotification } from '../services/firebaseMessaging.js';
 import AdminAlertControls from '../components/admin/AdminAlertControls.jsx';
 import AdminPwaInstall from '../components/admin/AdminPwaInstall.jsx';
+import PushAlertSheet from '../components/PushAlertSheet.jsx';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -30,9 +31,11 @@ const PAGE_TITLES = Object.fromEntries(NAV.map(({ to, label }) => [to, label]));
 export default function AdminLayout() {
   const { user, checking, logout, isAdmin } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const [banner, setBanner] = useState('');
+  const [activeAlert, setActiveAlert] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('ser_booking_sound') === 'on');
   const [soundActive, setSoundActive] = useState(false);
   const [lastNotification, setLastNotification] = useState(() => {
@@ -75,6 +78,7 @@ export default function AdminLayout() {
         stopBookingSound();
         setSoundActive(false);
         setBanner('');
+        setActiveAlert(null);
       }
     };
     navigator.serviceWorker?.addEventListener('message', onServiceWorkerMessage);
@@ -101,7 +105,11 @@ export default function AdminLayout() {
           const notAlerted = newIds.filter((id) => !alertedBookingIds.current.has(String(id)));
           notAlerted.forEach((id) => alertedBookingIds.current.add(String(id)));
           if (notAlerted.length) {
-            setBanner(`${notAlerted.length} new booking${notAlerted.length === 1 ? '' : 's'} received`);
+            setActiveAlert({
+              title: '🚗 New Ride Booking!',
+              body: `${notAlerted.length} new booking${notAlerted.length === 1 ? '' : 's'} received. Open bookings to review.`,
+              bookingId: String(notAlerted[0]),
+            });
             if (soundEnabledRef.current) {
               playBookingSound(
                 () => setSoundActive(false),
@@ -129,7 +137,7 @@ export default function AdminLayout() {
       if (stopped || !data.bookingId || alertedBookingIds.current.has(String(data.bookingId))) return;
       alertedBookingIds.current.add(String(data.bookingId));
       showFcmNotification(data).catch((err) => console.error('[admin] could not display booking notification:', err.message));
-      setBanner(`${data.title || 'New Ride Booking!'}${data.body ? ` — ${data.body}` : ''}`);
+      setActiveAlert(data);
       rememberNotification(data.title || 'New Ride Booking!', data.body || 'A new booking has arrived.');
       if (soundEnabledRef.current) {
         playBookingSound(
@@ -173,6 +181,19 @@ export default function AdminLayout() {
       }
       setBanner('Booking sound test played.');
     } catch (err) { setBanner(err.message || 'Could not play the booking sound.'); }
+  }
+
+  function dismissPushAlert() {
+    stopBookingSound();
+    setSoundActive(false);
+    setActiveAlert(null);
+  }
+
+  function openPushAlert() {
+    const id = String(activeAlert?.bookingId || '');
+    const target = /^\d+$/.test(id) ? `/admin/bookings/${encodeURIComponent(id)}` : '/admin/bookings';
+    dismissPushAlert();
+    navigate(target);
   }
 
   if (checking) return <div className="grid min-h-screen place-items-center bg-mist"><Spinner label="Checking your session…" /></div>;
@@ -220,6 +241,8 @@ export default function AdminLayout() {
           </Link>
         </div>
       </header>
+
+      <PushAlertSheet alert={activeAlert} onOpen={openPushAlert} onDismiss={dismissPushAlert} soundActive={soundActive} onStopSound={() => { stopBookingSound(); setSoundActive(false); }} actionLabel="Review booking" />
 
       {banner && (
         <div className="flex items-center justify-between gap-3 bg-leaf px-4 py-2.5 text-sm font-bold text-night lg:px-8" role="status">

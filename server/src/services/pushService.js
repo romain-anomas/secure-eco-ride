@@ -64,6 +64,34 @@ export async function hasAdminToken(userId, hash) {
   return Boolean(row);
 }
 
+export async function registerDriverPushToken(userId, token, deviceName) {
+  if (!messaging) throw new Error(setupError || 'Firebase Cloud Messaging is unavailable.');
+  const hash = tokenHash(token);
+  await pool.query(
+    `INSERT INTO driver_push_tokens (user_id, token_hash, token, device_name) VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), token = VALUES(token), device_name = VALUES(device_name)`,
+    [userId, hash, token, deviceName || null],
+  );
+  return hash;
+}
+
+export async function removeDriverPushToken(userId, token) {
+  await pool.query('DELETE FROM driver_push_tokens WHERE user_id = ? AND token_hash = ?', [userId, tokenHash(token)]);
+}
+
+export async function driverPushTokenCount(userId) {
+  const [[row]] = await pool.query('SELECT COUNT(*) AS count FROM driver_push_tokens WHERE user_id = ?', [userId]);
+  return Number(row.count);
+}
+
+export async function hasDriverPushToken(userId, hash) {
+  const [[row]] = await pool.query(
+    'SELECT 1 AS found FROM driver_push_tokens WHERE user_id = ? AND token_hash = ? LIMIT 1',
+    [userId, hash],
+  );
+  return Boolean(row);
+}
+
 export async function sendAdminTestPush(userId) {
   if (!messaging) throw new Error(setupError || 'Firebase Cloud Messaging is unavailable.');
   const [devices] = await pool.query(
@@ -212,4 +240,73 @@ export async function sendBookingPush(booking) {
       console.error(`[fcm] booking alert failed booking=${booking.reference} code=${code}`);
     }
   }
+}
+
+/** Sends the newly assigned driver a private job notification after assignment commits. */
+export async function sendDriverAssignmentPush(booking, dispatchEventId) {
+  if (!messaging || !booking.driver_id || !dispatchEventId) return { registered: 0, sent: 0, failed: 0 };
+  const [devices] = await pool.query(
+    `SELECT t.id, t.token_hash, t.token
+     FROM driver_push_tokens t
+     JOIN users u ON u.id = t.user_id
+     JOIN drivers d ON d.user_id = u.id
+     WHERE d.id = ? AND d.is_active = 1 AND u.role = 'DRIVER' AND u.is_active = 1`,
+    [booking.driver_id],
+  );
+  if (!devices.length) return { registered: 0, sent: 0, failed: 0 };
+
+  const title = '🚗 Job assigned or updated';
+  const details = [
+    booking.reference,
+    `Passenger: ${booking.customer_name || 'Customer'}`,
+    booking.customer_phone ? `Phone: ${booking.customer_phone}` : null,
+    `Pickup: ${booking.pickup_location}`,
+    `Destination: ${booking.destination}`,
+    pickupLabel(booking),
+    `Status: ${booking.status}`,
+  ].filter(Boolean);
+  const body = details.join(' · ').slice(0, 900);
+  const url = new URL('/driver', config.clientUrl).toString();
+  let sent = 0;
+  let failed = 0;
+
+  for (let start = 0; start < devices.length; start += 500) {
+    const batch = devices.slice(start, start + 500);
+    const response = await messaging.sendEachForMulticast({
+      tokens: batch.map((device) => device.token),
+      notification: { title, body },
+      data: {
+        title,
+        body,
+        bookingId: String(booking.id),
+        dispatchEventId: String(dispatchEventId),
+        url: '/driver',
+        type: 'DRIVER_ASSIGNMENT',
+      },
+      webpush: {
+        headers: { Urgency: 'high', TTL: '2419200' },
+        notification: {
+          icon: '/pwa-192.png',
+          badge: '/pwa-192.png',
+          tag: `driver-job-${booking.id}-${dispatchEventId}`,
+          renotify: true,
+          silent: false,
+          vibrate: [250, 100, 250, 100, 400],
+          requireInteraction: true,
+        },
+        fcmOptions: { link: url },
+      },
+    });
+    sent += response.successCount;
+    failed += response.failureCount;
+    for (let i = 0; i < response.responses.length; i += 1) {
+      const error = response.responses[i].error;
+      if (error && INVALID_TOKEN_CODES.has(error.code)) {
+        await pool.query('DELETE FROM driver_push_tokens WHERE id = ?', [batch[i].id]);
+      } else if (error) {
+        console.error(`[fcm] driver assignment alert failed booking=${booking.reference} code=${error.code || 'send_failed'}`);
+      }
+    }
+  }
+  return { registered: devices.length, sent, failed };
 }

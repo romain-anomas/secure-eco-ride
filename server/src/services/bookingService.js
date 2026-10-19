@@ -179,7 +179,7 @@ export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
 
 /** Atomically saves the selected driver and status after the admin explicitly presses Send. */
 export async function dispatchBookingUpdate(id, { driver_id, status, note }, userId) {
-  const previousStatus = await withTransaction(async (conn) => {
+  const dispatch = await withTransaction(async (conn) => {
     const [[booking]] = await conn.query('SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE', [id]);
     if (!booking) throw badRequest('Booking not found');
     if (['COMPLETED', 'CANCELLED'].includes(booking.status)) throw badRequest('This booking is closed and cannot be changed.');
@@ -195,27 +195,30 @@ export async function dispatchBookingUpdate(id, { driver_id, status, note }, use
       if (conflicts.length) throw badRequest('This driver already has an active assignment. Choose another driver.');
     }
 
+    let notificationEventId = null;
     if (booking.driver_id !== driver_id) {
-      await conn.query(
+      const [assignment] = await conn.query(
         'INSERT INTO booking_assignment_history (booking_id, previous_driver_id, driver_id, assigned_by) VALUES (?,?,?,?)',
         [id, booking.driver_id, driver_id, userId],
       );
+      notificationEventId = assignment.insertId;
     }
     await conn.query(
       'UPDATE bookings SET driver_id = ?, vehicle_id = ?, status = ?, seen_by_admin = 1 WHERE id = ?',
       [driver_id, driver.vehicle_id, status, id],
     );
     if (booking.status !== status) {
-      await conn.query(
+      const [statusChange] = await conn.query(
         'INSERT INTO booking_status_history (booking_id, from_status, to_status, changed_by, note) VALUES (?,?,?,?,?)',
         [id, booking.status, status, userId, note || null],
       );
+      notificationEventId ||= statusChange.insertId;
     }
     await refreshDriverStatus(conn, driver_id);
     if (booking.driver_id && booking.driver_id !== driver_id) await refreshDriverStatus(conn, booking.driver_id);
-    return booking.status;
+    return { previousStatus: booking.status, notificationEventId };
   });
-  return { booking: await getBookingById(id), previousStatus };
+  return { booking: await getBookingById(id), ...dispatch };
 }
 
 export async function getStatusHistory(id) {

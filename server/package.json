@@ -12,6 +12,7 @@
     "db:init": "node scripts/initDb.js",
     "db:migrate:drivers": "node scripts/migrateDriverAccounts.js",
     "db:migrate:fcm": "node scripts/migrateFcm.js",
+    "db:migrate:driver-push": "node scripts/migrateDriverPush.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed.js --demo-fleet",
     "test": "node --test"

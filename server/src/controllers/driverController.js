@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { pool, withTransaction } from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { badRequest, notFound } from '../utils/AppError.js';
+import { badRequest, notFound, serviceUnavailable } from '../utils/AppError.js';
+import { driverPushTokenCount, hasDriverPushToken, isFcmConfigured, registerDriverPushToken, removeDriverPushToken } from '../services/pushService.js';
 
 const ACTIVE = ['ASSIGNED', 'DRIVER_ON_WAY', 'PICKED_UP'];
 
@@ -86,4 +87,38 @@ export const updateAvailability = asyncHandler(async (req, res) => {
     return next;
   });
   res.json({ data: { status, available: status === 'AVAILABLE' } });
+});
+
+export const pushStatus = asyncHandler(async (req, res) => {
+  const hash = req.query.token_hash;
+  const currentDeviceRegistered = typeof hash === 'string' && /^[a-f0-9]{64}$/.test(hash)
+    ? await hasDriverPushToken(req.user.id, hash)
+    : false;
+  res.json({ data: {
+    configured: isFcmConfigured(),
+    registeredDevices: await driverPushTokenCount(req.user.id),
+    currentDeviceRegistered,
+  } });
+});
+
+export const registerPushDevice = asyncHandler(async (req, res) => {
+  if (!isFcmConfigured()) throw serviceUnavailable('Push notifications are not configured on the server.');
+  const { token, device_name: deviceName } = req.body || {};
+  if (typeof token !== 'string' || token.trim().length < 20 || token.length > 8192) {
+    throw badRequest('A valid Firebase device token is required.');
+  }
+  if (deviceName !== undefined && (typeof deviceName !== 'string' || deviceName.length > 120)) {
+    throw badRequest('Device name must be 120 characters or fewer.');
+  }
+  await registerDriverPushToken(req.user.id, token.trim(), deviceName?.trim());
+  res.status(201).json({ data: { registered: true } });
+});
+
+export const removePushDevice = asyncHandler(async (req, res) => {
+  const { token } = req.body || {};
+  if (typeof token !== 'string' || token.length < 20 || token.length > 8192) {
+    throw badRequest('A valid Firebase device token is required.');
+  }
+  await removeDriverPushToken(req.user.id, token);
+  res.json({ data: { registered: false } });
 });
