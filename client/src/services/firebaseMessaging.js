@@ -1,26 +1,28 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { deleteToken, getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging';
 
-const webAppId = import.meta.env.VITE_FIREBASE_APP_ID || '';
-const senderIdFromAppId = webAppId.match(/^1:(\d+):web:/)?.[1] || '';
+const firebaseValue = (value = '') => String(value).trim().replace(/^(["'])(.*)\1$/, '$2');
+const webAppId = firebaseValue(import.meta.env.VITE_FIREBASE_APP_ID);
+const appIdMatch = webAppId.match(/^1:(\d+):web:([A-Za-z0-9_-]+)$/);
+const senderIdFromAppId = appIdMatch?.[1] || '';
 
 export const firebaseClientConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  apiKey: firebaseValue(import.meta.env.VITE_FIREBASE_API_KEY),
+  projectId: firebaseValue(import.meta.env.VITE_FIREBASE_PROJECT_ID),
   // The Firebase web app ID embeds its project sender number. Prefer it so a
   // stale duplicate Vercel variable cannot create an internally mixed config.
-  messagingSenderId: senderIdFromAppId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  messagingSenderId: senderIdFromAppId || firebaseValue(import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID),
   appId: webAppId,
 };
-const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
+const vapidKey = firebaseValue(import.meta.env.VITE_FIREBASE_VAPID_KEY);
 
 export function firebaseClientConfigIssue() {
   if (!firebaseClientConfig.apiKey || !firebaseClientConfig.projectId
     || !firebaseClientConfig.messagingSenderId || !firebaseClientConfig.appId || !vapidKey) {
     return 'Firebase web messaging settings are incomplete in this deployment.';
   }
-  if (!senderIdFromAppId) {
-    return 'Firebase app ID is not a valid web app ID. Copy it from Firebase Project settings.';
+  if (!appIdMatch) {
+    return 'Vercel VITE_FIREBASE_APP_ID must be the appId from Firebase Project settings → General → Your apps → Web app (format: 1:<sender-id>:web:<app-id>). Save it for Production and redeploy.';
   }
   return '';
 }
