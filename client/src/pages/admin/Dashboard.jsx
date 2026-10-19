@@ -8,12 +8,15 @@ import { HBars } from './Reports.jsx';
 
 function Stat({ icon: Icon, label, value, tone = 'text-moss', to }) {
   const inner = (
-    <div className="admin-card flex items-center gap-4 transition hover:border-leaf">
-      <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-mist ${tone}`}><Icon className="h-6 w-6" aria-hidden="true" /></span>
-      <div><p className="font-display text-3xl font-black leading-none">{value ?? '—'}</p><p className="mt-1 text-sm text-night/60">{label}</p></div>
+    <div className="admin-card flex h-full min-w-0 flex-col justify-between gap-4 p-4 transition hover:border-leaf hover:shadow-md max-sm:aspect-square max-sm:p-3 sm:flex-row sm:items-center sm:gap-4">
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-mist ${tone} max-sm:h-10 max-sm:w-10`}><Icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" /></span>
+      <div className="min-w-0 sm:flex-1">
+        <p className="font-display text-3xl font-black leading-none tracking-tight sm:text-3xl">{value ?? '—'}</p>
+        <p className="mt-2 text-sm leading-snug text-night/60 max-sm:text-xs">{label}</p>
+      </div>
     </div>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link className="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf focus-visible:ring-offset-2" to={to}>{inner}</Link> : inner;
 }
 
 export default function Dashboard() {
@@ -32,7 +35,7 @@ export default function Dashboard() {
               <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" /> {s.whatsapp_failed_7d} WhatsApp notification{s.whatsapp_failed_7d === 1 ? '' : 's'} failed in the last 7 days. Review and retry →
             </Link>
           )}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
             <Stat icon={CalendarCheck} label="Rides scheduled today" value={s.today} to="/admin/bookings" />
             <Stat icon={Clock} label="Pending bookings" value={s.pending} tone="text-amber-600" to="/admin/bookings" />
             <Stat icon={CheckCircle2} label="Confirmed bookings" value={s.confirmed} tone="text-sky-600" />
