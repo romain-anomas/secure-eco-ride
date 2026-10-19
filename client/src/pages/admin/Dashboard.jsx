@@ -8,11 +8,11 @@ import { HBars } from './Reports.jsx';
 
 function Stat({ icon: Icon, label, value, tone = 'text-moss', to }) {
   const inner = (
-    <div className="admin-card flex h-full min-w-0 flex-col justify-between gap-4 p-4 transition hover:border-leaf hover:shadow-md max-sm:aspect-square max-sm:p-3 sm:flex-row sm:items-center sm:gap-4">
-      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-mist ${tone} max-sm:h-10 max-sm:w-10`}><Icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" /></span>
-      <div className="min-w-0 sm:flex-1">
-        <p className="font-display text-3xl font-black leading-none tracking-tight sm:text-3xl">{value ?? '—'}</p>
-        <p className="mt-2 text-sm leading-snug text-night/60 max-sm:text-xs">{label}</p>
+    <div className="admin-card flex h-full min-w-0 flex-col justify-between gap-4 p-4 transition hover:border-leaf hover:shadow-md max-md:aspect-square max-md:p-4 md:flex-row md:items-center md:gap-4">
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-mist ${tone} max-md:h-10 max-md:w-10`}><Icon className="h-5 w-5 md:h-6 md:w-6" aria-hidden="true" /></span>
+      <div className="min-w-0 md:flex-1">
+        <p className="font-display text-3xl font-black leading-none tracking-tight">{value ?? '—'}</p>
+        <p className="mt-2 text-sm leading-snug text-night/60 max-md:text-xs">{label}</p>
       </div>
     </div>
   );
