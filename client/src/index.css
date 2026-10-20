@@ -170,3 +170,11 @@
 .public-site .btn-outline { border-color: #55c900; }
 .public-site .btn-outline:hover { color: #071108; }
 .public-site ::selection { background: rgb(85 201 0 / 0.35); color: white; }
+
+/* Softer green accents in the admin workspace reduce visual glare. */
+.admin-shell {
+  --c-green: 79 141 87;
+  --c-green-bright: 166 199 155;
+  --c-green-ink: 48 105 59;
+  --c-light: 244 247 245;
+}

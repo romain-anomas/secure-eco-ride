@@ -28,7 +28,7 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-night px-4 py-10">
+    <div className="admin-shell grid min-h-screen place-items-center bg-night px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 flex justify-center"><Logo size={56} to="/" /></div>
         <form onSubmit={submit} className="rounded-3xl border-t-4 border-leaf bg-white p-7 shadow-2xl">

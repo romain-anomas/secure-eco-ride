@@ -226,7 +226,7 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-mist lg:pl-64">
+    <div className="admin-shell min-h-screen bg-mist lg:pl-64">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block">{sidebar}</aside>
       {open && <div className="fixed inset-0 z-40 lg:hidden"><div className="absolute inset-0 bg-night/60" onClick={() => setOpen(false)} /><aside className="absolute inset-y-0 left-0 w-72 max-w-[85%]">{sidebar}</aside></div>}
 
