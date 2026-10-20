@@ -165,6 +165,7 @@ export const PricingAdmin = () => (
 // ------------------------------------------------------------ Testimonials
 const TESTIMONIAL_FIELDS = [
   { name: 'customer_name', label: 'Customer name', required: true },
+  { name: 'customer_photo_url', label: 'Customer photo', type: 'image', hint: 'Optional. Upload a real customer photo only with their permission.' },
   { name: 'text', label: 'Testimonial', type: 'textarea', required: true, hint: 'Only add feedback from real customers, with their permission.' },
   { name: 'rating', label: 'Rating (1–5)', type: 'number', min: 1, max: 5, required: true, default: 5 },
   { name: 'status', label: 'Status', type: 'select', options: opt(['PENDING', 'APPROVED', 'HIDDEN']), allowEmpty: false, default: 'PENDING', hint: 'Only APPROVED testimonials appear publicly.' },
@@ -174,6 +175,7 @@ export const TestimonialsAdmin = () => (
     fields={TESTIMONIAL_FIELDS}
     columns={[
       { header: 'Customer', render: (r) => <span className="font-semibold">{r.customer_name}</span> },
+      { header: 'Photo', render: (r) => r.customer_photo_url ? <img src={r.customer_photo_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : '—' },
       { header: 'Rating', render: (r) => `${r.rating} / 5` },
       { header: 'Text', render: (r) => <span className="line-clamp-2 max-w-md">{r.text}</span> },
       { header: 'Status', render: (r) => <Badge value={r.status} /> },

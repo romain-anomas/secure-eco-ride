@@ -17,7 +17,7 @@ export function resolveAssetUrl(value) {
   } catch { return value; }
 }
 
-const ASSET_KEYS = new Set(['image_url', 'hero_image_url', 'logo_url']);
+const ASSET_KEYS = new Set(['image_url', 'hero_image_url', 'logo_url', 'customer_photo_url']);
 function resolveAssets(value) {
   if (Array.isArray(value)) { value.forEach(resolveAssets); return; }
   if (!value || typeof value !== 'object') return;

@@ -19,7 +19,13 @@ export default function Testimonials() {
                   {Array.from({ length: 5 }, (_, i) => <Star key={i} className={`h-5 w-5 ${i < t.rating ? 'fill-leaf' : 'text-night/20'}`} aria-hidden="true" />)}
                 </p>
                 <blockquote className="mt-4 leading-relaxed text-night/80">“{t.text}”</blockquote>
-                <p className="mt-4 font-display font-extrabold uppercase tracking-tight">{t.customer_name}</p>
+                <div className="mt-5 flex items-center gap-3 border-t border-night/10 pt-4">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-leaf/15 font-display text-lg font-extrabold text-moss" aria-hidden="true">
+                    {t.customer_name?.trim()?.charAt(0)?.toUpperCase() || '?'}
+                  </span>
+                  {t.customer_photo_url && <img src={t.customer_photo_url} alt={`${t.customer_name}`} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.style.display = 'none'; }} className="-ml-[3.75rem] h-12 w-12 shrink-0 rounded-full object-cover" />}
+                  <p className="min-w-0 font-display font-extrabold tracking-tight">{t.customer_name}</p>
+                </div>
               </li>
             ))}
           </ul>
