@@ -171,10 +171,13 @@
 .public-site .btn-outline:hover { color: #071108; }
 .public-site ::selection { background: rgb(85 201 0 / 0.35); color: white; }
 
-/* Softer green accents in the admin workspace reduce visual glare. */
+/* Keep the established greens and soften only the admin white surfaces. */
 .admin-shell {
-  --c-green: 79 141 87;
-  --c-green-bright: 166 199 155;
-  --c-green-ink: 48 105 59;
-  --c-light: 244 247 245;
+  --c-light: 242 246 243;
 }
+.admin-shell .bg-white,
+.admin-shell [class~="bg-white/95"] { background-color: #f8faf8; }
+.admin-shell .admin-card { background-color: #f8faf8; }
+.admin-shell input:not([type="checkbox"]):not([type="radio"]),
+.admin-shell textarea,
+.admin-shell select { background-color: #fcfdfc; }
