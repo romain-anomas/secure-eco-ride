@@ -106,3 +106,67 @@
 /* Route line drawing: used once, on the "How it works" section */
 @keyframes route-draw { to { stroke-dashoffset: 0; } }
 .route-draw { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: route-draw 2.4s ease-out 0.2s forwards; }
+
+/* Public website visual system: charcoal surfaces, crisp type, and Eco Ride green.
+   Scoped to the public layout so admin and driver workspaces keep their UI. */
+.public-site {
+  --public-bg: #0b1011;
+  --public-surface: #12191b;
+  --public-surface-raised: #192123;
+  --public-copy: #f2f6f3;
+  --public-muted: #b3beb9;
+  min-height: 100vh;
+  background: var(--public-bg);
+  color: var(--public-copy);
+}
+.public-site h1,
+.public-site h2,
+.public-site h3,
+.public-site h4,
+.public-site .h-display,
+.public-site .h-section {
+  font-family: 'Archivo', 'Public Sans', system-ui, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+}
+.public-site .bg-white,
+.public-site [class~="bg-white/95"],
+.public-site [class~="lg:bg-white"] { background-color: var(--public-surface) !important; }
+.public-site .bg-mist { background-color: var(--public-surface-raised) !important; }
+.public-site .bg-night { background-color: var(--public-bg); }
+.public-site .bg-coal { background-color: #101618; }
+.public-site .text-night,
+.public-site [class~="text-night/80"],
+.public-site [class~="text-night/75"],
+.public-site [class~="text-night/70"] { color: var(--public-copy); }
+.public-site [class~="text-night/65"],
+.public-site [class~="text-night/60"],
+.public-site [class~="text-night/55"],
+.public-site [class~="text-night/50"],
+.public-site [class~="text-night/45"] { color: var(--public-muted); }
+.public-site [class~="text-night/40"] { color: #9ba8a2; }
+.public-site .text-moss { color: #81dc54; }
+.public-site [class~="border-night/5"],
+.public-site [class~="border-night/10"],
+.public-site [class~="border-night/15"],
+.public-site [class~="border-night/20"] { border-color: rgb(226 240 233 / 0.14); }
+.public-site [class~="divide-night/10"] > :not([hidden]) ~ :not([hidden]) { border-color: rgb(226 240 233 / 0.12); }
+.public-site .btn-primary,
+.public-site [class~="bg-leaf"] { color: #071108; }
+.public-site .input {
+  border-color: rgb(226 240 233 / 0.2);
+  background-color: #0c1214;
+  color: var(--public-copy);
+}
+.public-site .input::placeholder { color: #899690; }
+.public-site .input:focus { border-color: #55c900; }
+.public-site select option { background: #12191b; color: var(--public-copy); }
+.public-site article.bg-white,
+.public-site .card {
+  border-color: rgb(226 240 233 / 0.1);
+  box-shadow: 0 18px 44px -30px rgb(0 0 0 / 0.85);
+}
+.public-site .shadow-card { --tw-shadow: 0 18px 44px -30px rgb(0 0 0 / 0.85); --tw-shadow-colored: 0 18px 44px -30px var(--tw-shadow-color); }
+.public-site .btn-outline { border-color: #55c900; }
+.public-site .btn-outline:hover { color: #071108; }
+.public-site ::selection { background: rgb(85 201 0 / 0.35); color: white; }

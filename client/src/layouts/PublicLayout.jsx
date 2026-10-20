@@ -8,7 +8,7 @@ export default function PublicLayout() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname]);
   return (
-    <>
+    <div className="public-site">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-lime focus:px-4 focus:py-2 focus:font-bold focus:text-night">Skip to content</a>
       <Navbar />
       <main id="main" className="pb-16 md:pb-0">
@@ -18,6 +18,6 @@ export default function PublicLayout() {
       </main>
       <Footer />
       <MobileActionBar />
-    </>
+    </div>
   );
 }
