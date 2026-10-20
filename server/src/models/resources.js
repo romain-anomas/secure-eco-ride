@@ -29,6 +29,6 @@ export const Pricing = createCrud({
 
 export const Testimonials = createCrud({
   table: 'testimonials',
-  fields: ['customer_name', 'text', 'rating', 'status'],
+  fields: ['customer_name', 'customer_photo_url', 'text', 'rating', 'status'],
   orderBy: 't.created_at DESC',
 });

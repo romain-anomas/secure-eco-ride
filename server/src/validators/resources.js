@@ -49,6 +49,7 @@ export const pricingSchema = z.object({
 
 export const testimonialSchema = z.object({
   customer_name: requiredText(2, 120, 'Customer name'),
+  customer_photo_url: optionalText(500),
   text: requiredText(5, 1200, 'Testimonial text'),
   rating: optionalInt(1, 5),
   status: z.enum(['PENDING', 'APPROVED', 'HIDDEN']).default('PENDING'),

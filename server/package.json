@@ -13,6 +13,7 @@
     "db:migrate:drivers": "node scripts/migrateDriverAccounts.js",
     "db:migrate:fcm": "node scripts/migrateFcm.js",
     "db:migrate:driver-push": "node scripts/migrateDriverPush.js",
+    "db:migrate:testimonial-photos": "node scripts/migrateTestimonialPhoto.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed.js --demo-fleet",
     "test": "node --test"

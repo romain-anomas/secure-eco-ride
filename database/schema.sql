@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS booking_assignment_history (
 CREATE TABLE IF NOT EXISTS testimonials (
   id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   customer_name VARCHAR(120) NOT NULL,
+  customer_photo_url VARCHAR(500) NULL,
   text          TEXT NOT NULL,
   rating        TINYINT UNSIGNED NOT NULL DEFAULT 5,
   status        ENUM('PENDING','APPROVED','HIDDEN') NOT NULL DEFAULT 'PENDING',
