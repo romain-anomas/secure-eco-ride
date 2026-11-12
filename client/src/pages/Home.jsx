@@ -3,8 +3,10 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CalendarDays, CarFront, Check, Clock3, ClipboardList, KeyRound, MessageCircle, Search, ShieldCheck, Users, Zap } from 'lucide-react';
 import useSeo from '../hooks/useSeo.js';
 import useFetch from '../hooks/useFetch.js';
+import useServices from '../hooks/useServices.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import FleetCard from '../components/FleetCard.jsx';
+import ServiceCard from '../components/ServiceCard.jsx';
 import Testimonials from '../components/Testimonials.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { smartImageProps, STOCK_PHOTOS } from '../utils/images.js';
@@ -47,6 +49,46 @@ function TrustRow() {
   return <section className="px-4 pt-5 sm:px-6 lg:px-8" aria-label="What you can expect"><ul className="mx-auto grid max-w-6xl grid-cols-2 overflow-hidden rounded-2xl border border-night/10 bg-white sm:grid-cols-4">{PILLARS.map(([Icon, title, detail, tone]) => <li key={title} className="flex min-h-28 flex-col items-center justify-center gap-2 border-b border-r border-night/5 bg-white px-3 py-5 text-center last:border-r-0 sm:min-h-32"><span className={`grid h-11 w-11 place-items-center rounded-xl ${tone}`}><Icon className="h-6 w-6" strokeWidth={1.7} /></span><span className="text-sm font-bold text-night">{title}</span><span className="max-w-48 text-[11px] leading-relaxed text-night/55">{detail}</span></li>)}</ul></section>;
 }
 
+function ServicePreview() {
+  const { services, loading, priceFor } = useServices();
+  const featuredServices = services.slice(0, 4);
+
+  return (
+    <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8" aria-labelledby="services-title">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-9 flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[.16em] text-emerald-800">Ways to travel with us</p>
+            <h2 id="services-title" className="mt-2 text-2xl font-extrabold tracking-tight text-night sm:text-3xl">Services for every journey</h2>
+            <p className="mt-2 text-sm text-night/55">From everyday trips to airport transfers and business travel.</p>
+          </div>
+          <Link to="/services" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-night/15 bg-white px-4 py-2.5 text-sm font-bold text-night transition hover:border-emerald-600 hover:text-emerald-800">
+            Explore all services <ArrowRight size={15} />
+          </Link>
+        </div>
+        {loading && !featuredServices.length ? (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" aria-label="Loading services">
+            {[0, 1, 2, 3].map((item) => <div key={item} className="h-72 animate-pulse rounded-3xl bg-mist" />)}
+          </div>
+        ) : featuredServices.length ? (
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredServices.map((service) => (
+              <li key={service.id}><ServiceCard service={service} price={priceFor(service)} /></li>
+            ))}
+          </ul>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-night/15 bg-mist p-8 text-center">
+            <p className="text-sm text-night/65">Our services are being updated. You can still request a ride.</p>
+            <Link to="/booking" className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm font-bold text-emerald-800 hover:text-night">
+              Book a ride <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function FleetPreview() {
   const { data, loading } = useFetch('/fleet', { initial: [] });
   const vehicles = (data || []).slice(0, 4);
@@ -67,5 +109,5 @@ function WhatsAppBand() {
 
 export default function Home() {
   useSeo({ title: 'Secure Eco Ride | Safe & Reliable Taxi Services', description: 'Book safe, reliable transport in Rwanda with Secure Eco Ride. Airport transfers, business travel and private rides with professional drivers.' });
-  return <div className="home-page"><Hero /><BookingCallout /><TrustRow /><FleetPreview /><HowToBook /><div className="home-reviews"><Testimonials /></div><WhatsAppBand /></div>;
+  return <div className="home-page"><Hero /><BookingCallout /><TrustRow /><ServicePreview /><FleetPreview /><HowToBook /><div className="home-reviews"><Testimonials /></div><WhatsAppBand /></div>;
 }
