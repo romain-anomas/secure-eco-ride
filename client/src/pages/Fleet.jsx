@@ -23,7 +23,7 @@ export default function Fleet() {
             <div className="mb-8 flex flex-wrap gap-2" role="group" aria-label="Filter by category">
               {categories.map((c) => (
                 <button key={c} type="button" onClick={() => setCat(c)} aria-pressed={cat === c}
-                  className={`rounded-full border-2 px-4 py-2 font-display text-xs font-extrabold uppercase tracking-wide transition ${cat === c ? 'border-leaf bg-leaf text-night' : 'border-night/15 bg-white hover:border-leaf'}`}>{c}</button>
+                  className={`rounded-xl border px-4 py-2 font-display text-xs font-extrabold transition ${cat === c ? 'border-amber-400 bg-amber-400 text-night' : 'border-night/15 bg-white hover:border-amber-400'}`}>{c}</button>
               ))}
             </div>
           )}

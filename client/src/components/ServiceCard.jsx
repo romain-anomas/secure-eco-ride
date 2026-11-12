@@ -11,7 +11,7 @@ export default function ServiceCard({ service, price }) {
       <h3 className="mt-5 font-display text-xl font-black uppercase leading-tight tracking-tight text-moss">{service.name}</h3>
       <p className="mt-3 flex-1 leading-relaxed text-night/70">{service.description}</p>
       {price && <p className="mt-3 text-sm font-semibold text-night/80">{price}</p>}
-      <Link to={to} className="btn btn-outline btn-sm mt-6 self-start">Book now</Link>
+      <Link to={to} className="btn btn-primary btn-sm mt-6 self-start">Book now</Link>
     </article>
   );
 }

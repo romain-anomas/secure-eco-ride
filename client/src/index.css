@@ -197,6 +197,12 @@
 .public-site [class~="divide-white/10"] > :not([hidden]) ~ :not([hidden]) { border-color: rgb(23 33 27 / 0.1); }
 .public-site .btn-primary,
 .public-site [class~="bg-leaf"] { color: #071108; }
+.public-site .btn { border-radius: 0.75rem; }
+.public-site .btn-primary {
+  background-color: #fbbf24;
+  color: #17211b;
+}
+.public-site .btn-primary:hover { background-color: #f59e0b; color: #17211b; }
 .public-site .input {
   border-color: rgb(23 33 27 / 0.2);
   background-color: #fff;

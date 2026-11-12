@@ -21,7 +21,7 @@ export default function MobileActionBar() {
             <MessageCircle className={`h-5 w-5 ${isHome ? 'text-amber-500' : 'text-moss'}`} aria-hidden="true" /> WhatsApp
           </a>
         )}
-        <Link to="/booking" className={`${base} ${isHome ? 'bg-amber-400 text-night' : 'bg-leaf text-night'}`}>
+        <Link to="/booking" className={`${base} bg-amber-400 text-night transition-colors hover:bg-amber-300`}>
           <CalendarCheck className="h-5 w-5" aria-hidden="true" /> Book ride
         </Link>
       </div>

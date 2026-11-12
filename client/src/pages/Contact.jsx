@@ -79,7 +79,7 @@ export default function Contact() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 {phones[0] && <a href={tel(phones[0])} className="btn btn-primary">Call now</a>}
                 {primaryWhatsApp && <a href={wa(primaryWhatsApp, 'Hello Secure Eco Ride')} target="_blank" rel="noopener noreferrer" className="btn btn-outline-light"><MessageCircle className="h-4 w-4" aria-hidden="true" /> WhatsApp</a>}
-                <Link to="/booking" className="btn btn-outline-light">Book a ride</Link>
+                <Link to="/booking" className="btn btn-primary">Book a ride</Link>
               </div>
             </div>
             {(settings.email || settings.address || settings.business_hours) && (
