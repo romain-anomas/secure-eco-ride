@@ -74,7 +74,7 @@ export default function Navbar() {
           <motion.nav
             id="mobile-menu"
             aria-label="Mobile"
-            className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto border-t border-night/10 bg-white px-4 pb-28 pt-4 xl:hidden"
+            className="absolute inset-x-0 top-full z-50 h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain border-t border-night/10 bg-white px-4 pb-28 pt-4 shadow-xl xl:hidden"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
