@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, CalendarDays, CarFront, Check, Clock3, ClipboardList, KeyRound, MapPin, MessageCircle, Search, ShieldCheck, Users, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
+import { ArrowRight, CalendarDays, CarFront, Check, Clock3, ClipboardList, KeyRound, MessageCircle, Search, ShieldCheck, Users, Zap } from 'lucide-react';
 import useSeo from '../hooks/useSeo.js';
 import useFetch from '../hooks/useFetch.js';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -8,7 +8,6 @@ import FleetCard from '../components/FleetCard.jsx';
 import Testimonials from '../components/Testimonials.jsx';
 import Reveal from '../components/Reveal.jsx';
 import { smartImageProps, STOCK_PHOTOS } from '../utils/images.js';
-import { todayISO } from '../utils/format.js';
 
 const PILLARS = [
   [ShieldCheck, 'Safety minded', 'Professional drivers and clear communication', 'text-emerald-700 bg-emerald-50'],
@@ -25,38 +24,20 @@ const STEPS = [
   [KeyRound, 'Ride with confidence', 'Your driver will meet you at the agreed pickup.'],
 ];
 
-function TripSearch() {
-  const navigate = useNavigate();
-  const [trip, setTrip] = useState({ pickup_location: '', destination: '', pickup_date: '' });
-  const update = (event) => setTrip((current) => ({ ...current, [event.target.name]: event.target.value }));
-  function submit(event) {
-    event.preventDefault();
-    const query = new URLSearchParams(Object.entries(trip).filter(([, value]) => value.trim()));
-    const search = query.toString();
-    navigate(`/booking${search ? `?${search}` : ''}`);
-  }
-  return <form onSubmit={submit} className="grid gap-3 rounded-2xl border border-night/10 bg-white/95 p-4 shadow-[0_20px_60px_-25px_rgba(13,32,25,.22)] backdrop-blur-xl sm:grid-cols-2 sm:p-5 lg:grid-cols-[1fr_1fr_.8fr_auto] lg:items-end">
-    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-night/75">Pickup location</span><span className="relative block"><MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-700" /><input name="pickup_location" value={trip.pickup_location} onChange={update} placeholder="Where should we pick you up?" autoComplete="street-address" className="h-11 w-full rounded-xl border border-night/10 bg-[#f4f7f5] pl-10 pr-3 text-sm text-night placeholder:text-night/40 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15" /></span></label>
-    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-night/75">Destination</span><span className="relative block"><MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sky-700" /><input name="destination" value={trip.destination} onChange={update} placeholder="Where are you going?" className="h-11 w-full rounded-xl border border-night/10 bg-[#f4f7f5] pl-10 pr-3 text-sm text-night placeholder:text-night/40 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15" /></span></label>
-    <label className="block"><span className="mb-1.5 block text-xs font-semibold text-night/75">Pickup date</span><span className="relative block"><CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-600" /><input name="pickup_date" type="date" min={todayISO()} value={trip.pickup_date} onChange={update} className="h-11 w-full rounded-xl border border-night/10 bg-[#f4f7f5] pl-10 pr-3 text-sm text-night focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/15" /></span></label>
-    <button type="submit" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 text-sm font-extrabold text-night transition hover:bg-amber-300 sm:col-span-2 lg:col-span-1"><Search size={16} /> Plan ride</button>
-  </form>;
-}
-
 function Hero() {
   const { settings } = useSettings();
+  const reduceMotion = useReducedMotion();
   const photo = smartImageProps(settings.hero_image_url || STOCK_PHOTOS.fleetSuv, { w: 2000 });
-  return <section className="relative isolate flex min-h-[620px] items-center overflow-hidden bg-[#f4f7f5] pb-32 pt-28 text-night sm:min-h-[690px] sm:pb-36 lg:min-h-[720px] lg:pt-28" aria-label="Secure Eco Ride welcome">
-    <img src={photo.src} srcSet={photo.srcSet} sizes="100vw" alt="A Secure Eco Ride vehicle ready for the journey" className="absolute inset-0 -z-30 h-full w-full object-cover object-center" fetchPriority="high" decoding="async" />
-    <div className="absolute inset-0 -z-20 bg-gradient-to-r from-white via-white/90 to-white/5" />
-    <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#f4f7f5] via-transparent to-white/20" />
-    <div className="container-x relative w-full"><div className="max-w-2xl">
+  return <section className="relative isolate flex min-h-[580px] items-center overflow-hidden bg-[#f4f7f5] py-28 text-night sm:min-h-[640px] sm:py-32 lg:min-h-[700px]" aria-label="Secure Eco Ride welcome">
+    <motion.img src={photo.src} srcSet={photo.srcSet} sizes="100vw" alt="A Secure Eco Ride vehicle ready for the journey" className="absolute inset-0 -z-30 h-full w-full object-cover object-[63%_center]" fetchPriority="high" decoding="async" initial={reduceMotion ? false : { scale: 1.035 }} animate={reduceMotion ? undefined : { scale: [1.035, 1, 1.015] }} transition={reduceMotion ? undefined : { duration: 22, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }} />
+    <div className="absolute inset-0 -z-20 bg-gradient-to-r from-white via-white/90 via-45% to-white/10 to-80%" />
+    <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#f4f7f5]/95 via-transparent via-25% to-white/10" />
+    <motion.div className="container-x relative w-full" initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: 'easeOut' }}><div className="max-w-2xl">
       <p className="inline-flex items-center gap-2 rounded-full border border-emerald-700/15 bg-white/85 px-3.5 py-2 text-xs font-bold uppercase tracking-[.14em] text-emerald-800 shadow-sm backdrop-blur"><Zap size={14} className="text-amber-600" /> Secure Eco Ride · Rwanda</p>
       <h1 className="mt-5 max-w-[13ch] font-sans text-4xl font-extrabold leading-[1.04] tracking-[-.055em] text-[#101b18] sm:text-6xl lg:text-7xl">Safe rides,<br />made <span className="text-emerald-700">easy.</span></h1>
       <p className="mt-4 max-w-xl text-base leading-relaxed text-night/75 sm:text-lg">Reliable journeys for airport transfers, business travel and everyday trips. Tell us where you’re going and we’ll help with the rest.</p>
       <div className="mt-7 flex flex-wrap gap-3"><Link to="/booking" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-400 px-5 text-sm font-extrabold text-night transition hover:bg-amber-300">Book a ride <ArrowRight size={16} /></Link><Link to="/fleet" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-night/15 bg-white/80 px-5 text-sm font-bold text-night transition hover:border-emerald-600 hover:bg-white">Explore fleet</Link></div>
-    </div></div>
-    <div className="absolute inset-x-0 bottom-0 z-10 px-4 sm:px-6 lg:px-8"><div className="mx-auto mb-[-42px] max-w-6xl"><TripSearch /></div></div>
+    </div></motion.div>
   </section>;
 }
 

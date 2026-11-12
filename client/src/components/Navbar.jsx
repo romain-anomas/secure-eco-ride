@@ -37,7 +37,7 @@ export default function Navbar() {
     `relative px-1 py-2 text-sm font-semibold text-night/75 transition-colors after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-center after:scale-x-0 after:transition-transform hover:text-night hover:after:scale-x-100 ${onHome ? 'after:bg-amber-400' : 'after:bg-leaf'} ${isActive ? (onHome ? 'text-amber-700 after:scale-x-100' : 'text-moss') : ''}`;
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-night/5 bg-white/95 shadow-sm backdrop-blur transition-all duration-300">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-night/10 bg-white/95 shadow-[0_8px_30px_-22px_rgba(16,27,24,.35)] backdrop-blur-xl transition-all duration-300">
       <div className="container-x flex h-16 items-center justify-between lg:h-20">
         <Logo tone="dark" size={scrolled ? 38 : 44} />
 
@@ -56,7 +56,7 @@ export default function Navbar() {
           <Link to="/booking" className={`btn btn-sm hidden sm:inline-flex ${onHome ? 'bg-amber-400 text-night hover:bg-amber-300' : 'btn-primary'}`}>Book a ride</Link>
           <button
             type="button"
-            className="grid h-11 w-11 place-items-center rounded-full border border-night/20 text-night lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-night/15 bg-white text-night transition hover:border-emerald-700 hover:bg-emerald-50 lg:hidden"
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             aria-controls="mobile-menu"
