@@ -54,7 +54,7 @@ export default function Navbar() {
               <Phone className={`h-4 w-4 ${light ? 'text-moss' : 'text-lime'}`} aria-hidden="true" /> {prettyLocal(primaryPhone)}
             </a>
           )}
-          <Link to="/booking" className="btn btn-primary btn-sm hidden sm:inline-flex">Book a ride</Link>
+          <Link to="/booking" className="btn btn-sm hidden bg-amber-400 text-night hover:bg-amber-300 sm:inline-flex">Book a ride</Link>
           <button
             type="button"
             className={`grid h-11 w-11 place-items-center rounded-full border lg:hidden ${light ? 'border-night/20 text-night' : 'border-white/25 text-white'}`}
@@ -88,7 +88,7 @@ export default function Navbar() {
                 </li>
               ))}
             </ul>
-            <Link to="/booking" className="btn btn-primary mt-6 w-full">Book a ride</Link>
+            <Link to="/booking" className="btn mt-6 w-full bg-amber-400 text-night hover:bg-amber-300">Book a ride</Link>
           </motion.nav>
         )}
       </AnimatePresence>

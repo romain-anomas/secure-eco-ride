@@ -50,6 +50,16 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
   const topRef = useRef(null);
   const submissionKey = useRef(null);
 
+  // Carry the trip basics from the homepage search into the full booking form.
+  useEffect(() => {
+    const prefill = {};
+    ['pickup_location', 'destination', 'pickup_date'].forEach((key) => {
+      const value = params.get(key);
+      if (value) prefill[key] = value;
+    });
+    if (Object.keys(prefill).length) setForm((current) => ({ ...current, ...prefill }));
+  }, [params]);
+
   useEffect(() => {
     let alive = true;
     get('/services')
