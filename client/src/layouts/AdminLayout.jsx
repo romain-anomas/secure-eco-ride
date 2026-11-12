@@ -27,6 +27,11 @@ const NAV = [
   { to: '/admin/settings', label: 'Settings', icon: Settings, admin: true },
 ];
 const PAGE_TITLES = Object.fromEntries(NAV.map(({ to, label }) => [to, label]));
+const NAV_ICON_COLORS = {
+  Dashboard: '#1f8e5e', Bookings: '#0284c7', Customers: '#7c3aed', Drivers: '#0f766e', Vehicles: '#0891b2',
+  Services: '#d97706', Pricing: '#db2777', Testimonials: '#e11d48', Messages: '#2563eb', 'WhatsApp logs': '#16a34a',
+  Reports: '#4f46e5', 'Team accounts': '#9333ea', Settings: '#475569',
+};
 
 export default function AdminLayout() {
   const { user, checking, logout, isAdmin } = useAuth();
@@ -202,24 +207,24 @@ export default function AdminLayout() {
 
   const links = NAV.filter((n) => !n.admin || isAdmin);
   const sidebar = (
-    <nav className="flex h-full flex-col bg-night text-white" aria-label="Admin">
-      <div className="flex h-16 items-center justify-between px-5"><Logo size={36} to="/admin" /><button type="button" className="lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button></div>
+    <nav className="flex h-full flex-col border-r border-night/10 bg-white text-night" aria-label="Admin">
+      <div className="flex h-16 items-center justify-between px-5"><Logo tone="dark" size={36} to="/admin" /><button type="button" className="text-night/60 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu"><X className="h-5 w-5" /></button></div>
       <ul className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
         {links.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
-            <NavLink to={to} end={end} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isActive ? 'bg-leaf text-night' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}>
-              <Icon className="h-[18px] w-[18px]" aria-hidden="true" /> {label}
+            <NavLink to={to} end={end} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isActive ? 'bg-emerald-50 text-emerald-900' : 'text-night/70 hover:bg-mist hover:text-night'}`}>
+              <Icon className="h-[18px] w-[18px]" style={{ color: NAV_ICON_COLORS[label] || '#1f8e5e' }} aria-hidden="true" /> {label}
               {to === '/admin/bookings' && unseen > 0 && <span className="ml-auto rounded-full bg-lime px-2 py-0.5 text-xs font-black text-night">{unseen}</span>}
             </NavLink>
           </li>
         ))}
       </ul>
-      <div className="border-t border-white/10 p-4 text-sm">
+      <div className="border-t border-night/10 p-4 text-sm">
         <p className="truncate font-semibold">{user.name}</p>
-        <p className="truncate text-xs text-white/55">{user.email} · {user.role}</p>
+        <p className="truncate text-xs text-night/55">{user.email} · {user.role}</p>
         <div className="mt-3 flex gap-2">
-          <Link to="/" className="btn btn-outline-light btn-sm flex-1">View site</Link>
-          <button type="button" onClick={logout} className="btn btn-outline-light btn-sm" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
+          <Link to="/" className="btn btn-outline btn-sm flex-1">View site</Link>
+          <button type="button" onClick={logout} className="btn btn-outline btn-sm" aria-label="Sign out"><LogOut className="h-4 w-4" /></button>
         </div>
       </div>
     </nav>
