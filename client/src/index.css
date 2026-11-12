@@ -120,6 +120,7 @@
   min-height: 100vh;
   background: var(--public-bg);
   color: var(--public-copy);
+  font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 .public-site h1,
 .public-site h2,
@@ -128,8 +129,30 @@
 .public-site .h-display,
 .public-site .h-section {
   font-family: 'Archivo', 'Public Sans', system-ui, sans-serif !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.04em !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+  text-transform: none !important;
+}
+.public-site .h-display {
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1.08;
+}
+.public-site .h-section {
+  font-size: clamp(1.65rem, 3.3vw, 2.5rem);
+  line-height: 1.2;
+}
+.public-site .copy-lead {
+  font-style: normal;
+  line-height: 1.75;
+}
+.public-site p,
+.public-site li,
+.public-site label,
+.public-site input,
+.public-site textarea,
+.public-site select,
+.public-site button {
+  font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 .public-site .bg-white,
 .public-site [class~="bg-white/95"],
