@@ -10,6 +10,8 @@ export const NAV_LINKS = [
   { to: '/', label: 'Home', end: true },
   { to: '/services', label: 'Services' },
   { to: '/fleet', label: 'Fleet' },
+  { to: '/airport-transfers', label: 'Airport transfers' },
+  { to: '/corporate', label: 'Corporate travel' },
   { to: '/about', label: 'About' },
   { to: '/contact', label: 'Contact' },
 ];
@@ -41,7 +43,7 @@ export default function Navbar() {
       <div className="container-x flex h-16 items-center justify-between lg:h-20">
         <Logo tone="dark" size={scrolled ? 38 : 44} />
 
-        <nav className="hidden items-center gap-6 xl:gap-7 lg:flex" aria-label="Main">
+        <nav className="hidden items-center gap-4 xl:gap-5 2xl:gap-6 xl:flex" aria-label="Main">
           {NAV_LINKS.map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className={link}>{l.label}</NavLink>
           ))}
@@ -56,7 +58,7 @@ export default function Navbar() {
           <Link to="/booking" className={`btn btn-sm hidden sm:inline-flex ${onHome ? 'bg-amber-400 text-night hover:bg-amber-300' : 'btn-primary'}`}>Book a ride</Link>
           <button
             type="button"
-            className="grid h-11 w-11 place-items-center rounded-xl border border-night/15 bg-white text-night transition hover:border-emerald-700 hover:bg-emerald-50 lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-xl border border-night/15 bg-white text-night transition hover:border-emerald-700 hover:bg-emerald-50 xl:hidden"
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             aria-controls="mobile-menu"
@@ -72,7 +74,7 @@ export default function Navbar() {
           <motion.nav
             id="mobile-menu"
             aria-label="Mobile"
-            className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto border-t border-night/10 bg-white px-4 pb-28 pt-4 lg:hidden"
+            className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto border-t border-night/10 bg-white px-4 pb-28 pt-4 xl:hidden"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
