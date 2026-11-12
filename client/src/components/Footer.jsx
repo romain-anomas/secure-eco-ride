@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import Logo from './Logo.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -7,10 +7,12 @@ import { prettyLocal } from '../utils/phone.js';
 const SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', twitter: 'X / Twitter', tiktok: 'TikTok', youtube: 'YouTube' };
 
 export default function Footer() {
+  const { pathname } = useLocation();
+  const homeFooter = pathname === '/' ? 'home-footer' : '';
   const { settings, phones, whatsappNumbers, tel, wa } = useSettings();
   const socials = Object.entries(settings.social_links || {}).filter(([, v]) => v);
   return (
-    <footer className="bg-night text-white">
+    <footer className={`bg-night text-white ${homeFooter}`}>
       <div className="container-x grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <Logo size={48} />

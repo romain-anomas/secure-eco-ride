@@ -5,7 +5,7 @@ import { Badge, Empty, ErrorBox, Spinner } from '../../components/admin/ui.jsx';
 import { STATUS_LABELS, formatDate, formatTime } from '../../utils/format.js';
 import { parseError } from '../../services/api.js';
 
-const COLORS = ['#35a900', '#0ea5e9', '#6366f1', '#8b5cf6', '#14b8a6', '#16a34a', '#ef4444'];
+const COLORS = ['#1f8e5e', '#0ea5e9', '#6366f1', '#8b5cf6', '#14b8a6', '#16a34a', '#ef4444'];
 const dateValue = (value) => value == null ? 0 : Number(value);
 
 function Metric({ icon: Icon, label, value, hint, color, to }) {
@@ -60,7 +60,7 @@ export default function Dashboard() {
     {s?.whatsapp_failed_7d > 0 && <Link to="/admin/whatsapp" className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900"><AlertTriangle size={18} />{s.whatsapp_failed_7d} WhatsApp notification{s.whatsapp_failed_7d === 1 ? '' : 's'} failed in the last 7 days. Review logs <ArrowUpRight size={16} /></Link>}
     {summary.loading && !s ? <Spinner /> : s && <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-6">
-        <Metric icon={CalendarDays} label="Rides today" value={s.today} color="#35a900" to="/admin/bookings" />
+        <Metric icon={CalendarDays} label="Rides today" value={s.today} color="#1f8e5e" to="/admin/bookings" />
         <Metric icon={Clock3} label="Awaiting review" value={s.pending} hint={s.unseen_bookings ? `${s.unseen_bookings} new and unseen` : 'Pending bookings'} color="#d97706" to="/admin/bookings" />
         <Metric icon={CheckCircle2} label="Confirmed rides" value={s.confirmed} color="#0284c7" to="/admin/bookings" />
         <Metric icon={Users} label="Customers" value={s.customers} color="#7c3aed" to="/admin/customers" />

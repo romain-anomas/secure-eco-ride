@@ -8,8 +8,8 @@ export default {
       colors: {
         night: c('black'),      // #0B0F10
         coal: c('dark'),        // #121719
-        leaf: c('green'),       // #35A900
-        lime: c('green-bright'),// #55C900
+        leaf: c('green'),       // #1F8E5E emerald primary
+        lime: c('green-bright'),// #38C180 bright emerald
         moss: c('green-ink'),   // dark green for text on white (AA contrast)
         mist: c('light'),       // #F5F7F5
       },
