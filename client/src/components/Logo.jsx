@@ -3,12 +3,12 @@ import LogoMark from './art/LogoMark.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 
 /** Uses the uploaded logo (Admin → Settings) when available, otherwise the built-in emblem + wordmark. */
-export default function Logo({ tone = 'light', size = 44, to = '/', className = '' }) {
+export default function Logo({ tone = 'light', size = 44, to = '/', className = '', forceBrandMark = false }) {
   const { settings } = useSettings();
   const first = tone === 'light' ? 'text-white' : 'text-night';
   return (
     <Link to={to} className={`inline-flex items-center gap-3 ${className}`} aria-label={`${settings.company_name} — home`}>
-      {settings.logo_url ? (
+      {settings.logo_url && !forceBrandMark ? (
         <img src={settings.logo_url} alt="" style={{ height: size }} className="w-auto max-w-[180px] object-contain" />
       ) : (
         <>

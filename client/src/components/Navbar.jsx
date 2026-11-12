@@ -41,7 +41,7 @@ export default function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-night/10 bg-white/95 shadow-[0_8px_30px_-22px_rgba(16,27,24,.35)] backdrop-blur-xl transition-all duration-300">
       <div className="container-x flex h-16 items-center justify-between lg:h-20">
-        <Logo tone="dark" size={scrolled ? 38 : 44} />
+        <Logo tone="dark" size={scrolled ? 38 : 44} forceBrandMark />
 
         <nav className="hidden items-center gap-4 xl:gap-5 2xl:gap-6 xl:flex" aria-label="Main">
           {NAV_LINKS.map((l) => (
