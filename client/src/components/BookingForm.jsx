@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { get, post, parseError } from '../services/api.js';
@@ -6,7 +6,6 @@ import { normalizePhone } from '../utils/phone.js';
 import { todayISO } from '../utils/format.js';
 import { DEFAULT_SERVICES } from '../utils/defaults.js';
 import BookingConfirmation from './BookingConfirmation.jsx';
-import BookingMap from './BookingMap.jsx';
 import PhoneInput from './PhoneInput.jsx';
 import { DEFAULT_PHONE_COUNTRY } from '../utils/phoneCountries.js';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -14,9 +13,9 @@ import { prettyLocal } from '../utils/phone.js';
 
 const EMPTY = {
   customer_name: '', phone: '', email: '', pickup_location: '', destination: '', pickup_date: '', pickup_time: '',
-  passengers: '1', service_id: '', vehicle_type: '', notes: '', flight_number: '', airport_direction: '', airport_name: '',
+  service_id: '', flight_number: '', airport_direction: '', airport_name: '',
   luggage_count: '', website: '',
-  pickup_latitude: '', pickup_longitude: '', destination_latitude: '', destination_longitude: '',
+  pickup_latitude: '', pickup_longitude: '',
 };
 
 function Field({ id, label, error, hint, className = '', children }) {
@@ -32,7 +31,7 @@ function Field({ id, label, error, hint, className = '', children }) {
 
 /**
  * mode: 'quick'   compact 8-field form (home page)
- *       'full'    booking page (adds email, vehicle type, notes; airport fields appear for airport service)
+ *       'full'    booking page (adds email; airport fields appear for airport service)
  *       'airport' airport page (airport fields always shown, airport service preselected)
  */
 export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
@@ -46,7 +45,9 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
   const [result, setResult] = useState(null);
   const [services, setServices] = useState([]);
   const [servicesFailed, setServicesFailed] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [locationStatus, setLocationStatus] = useState('detecting');
+  const pickupEdited = useRef(false);
+  const locationRequest = useRef(0);
   const topRef = useRef(null);
   const submissionKey = useRef(null);
 
@@ -65,11 +66,43 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     get('/services')
       .then((r) => alive && setServices(r.data.filter((s) => s.is_bookable)))
       .catch(() => { if (alive) { setServicesFailed(true); setServices(DEFAULT_SERVICES.filter((s) => s.is_bookable)); } });
-    if (mode !== 'quick') {
-      get('/fleet').then((r) => alive && setCategories([...new Set(r.data.map((v) => v.category))])).catch(() => {});
-    }
     return () => { alive = false; };
   }, [mode]);
+
+  const detectPickupLocation = useCallback(() => {
+    const requestId = ++locationRequest.current;
+    if (!navigator.geolocation) {
+      setLocationStatus('unavailable');
+      return;
+    }
+    setLocationStatus('detecting');
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      if (requestId !== locationRequest.current) return;
+      if (pickupEdited.current) {
+        setLocationStatus('manual');
+        return;
+      }
+      setForm((current) => ({
+        ...current,
+        pickup_location: current.pickup_location.trim() ? current.pickup_location : 'Current location',
+        pickup_latitude: String(coords.latitude),
+        pickup_longitude: String(coords.longitude),
+      }));
+      setLocationStatus('detected');
+    }, (error) => {
+      if (requestId !== locationRequest.current) return;
+      setLocationStatus(error.code === 1 ? 'denied' : 'unavailable');
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }, []);
+
+  useEffect(() => {
+    if (params.get('pickup_location')?.trim()) {
+      setLocationStatus('manual');
+      return undefined;
+    }
+    detectPickupLocation();
+    return () => { locationRequest.current += 1; };
+  }, [params, detectPickupLocation]);
 
   // Preselect service from the page (airport) or ?service=slug
   const wantedSlug = defaultServiceSlug || params.get('service');
@@ -86,18 +119,10 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
 
   const set = (k) => (e) => {
     submissionKey.current = null;
+    if (k === 'pickup_location') pickupEdited.current = true;
     setForm((f) => ({ ...f, [k]: e.target.value }));
     if (errors[k]) setErrors((x) => ({ ...x, [k]: undefined }));
   };
-
-  const mapPoints = {
-    pickup: form.pickup_latitude !== '' && form.pickup_longitude !== '' ? { latitude: Number(form.pickup_latitude), longitude: Number(form.pickup_longitude) } : null,
-    destination: form.destination_latitude !== '' && form.destination_longitude !== '' ? { latitude: Number(form.destination_latitude), longitude: Number(form.destination_longitude) } : null,
-  };
-  function setMapPoint(which, latitude, longitude) {
-    submissionKey.current = null;
-    setForm((f) => ({ ...f, [`${which}_latitude`]: String(latitude), [`${which}_longitude`]: String(longitude) }));
-  }
 
   function validate() {
     const e = {};
@@ -110,8 +135,6 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     if (!form.pickup_date) e.pickup_date = 'Choose a date';
     else if (form.pickup_date < today) e.pickup_date = 'The date cannot be in the past';
     if (!form.pickup_time) e.pickup_time = 'Choose a time';
-    const passengerCount = Number(form.passengers);
-    if (!Number.isInteger(passengerCount) || passengerCount < 1 || passengerCount > 50) e.passengers = 'Enter a whole number from 1 to 50';
     if (showAirport && form.luggage_count !== '') {
       const luggageCount = Number(form.luggage_count);
       if (!Number.isInteger(luggageCount) || luggageCount < 0 || luggageCount > 50) e.luggage_count = 'Enter a whole number from 0 to 50';
@@ -139,7 +162,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
       const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
       submissionKey.current = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     }
-    const payload = { ...form, phone: normalizePhone(form.phone, phoneCountryCode), request_key: submissionKey.current, passengers: Number(form.passengers), service_id: Number(form.service_id) };
+    const payload = { ...form, phone: normalizePhone(form.phone, phoneCountryCode), request_key: submissionKey.current, passengers: 1, service_id: Number(form.service_id) };
     if (!showAirport) ['flight_number', 'airport_direction', 'airport_name', 'luggage_count'].forEach((k) => delete payload[k]);
     Object.keys(payload).forEach((k) => payload[k] === '' && delete payload[k]);
 
@@ -159,7 +182,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     }
   }
 
-  if (result) return <div ref={topRef}><BookingConfirmation result={result} onReset={() => setResult(null)} /></div>;
+  if (result) return <div ref={topRef}><BookingConfirmation result={result} onReset={() => { setResult(null); pickupEdited.current = false; setForm(EMPTY); detectPickupLocation(); }} /></div>;
 
   const inputCls = (k) => `input ${errors[k] ? 'input-error' : ''}`;
   const aria = (k) => ({ 'aria-invalid': Boolean(errors[k]), 'aria-describedby': errors[k] ? `bf-${k}-error` : undefined });
@@ -173,21 +196,18 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
       </div>
 
       <div className={grid}>
-        <Field id="bf-pickup_location" label="Pickup location" error={errors.pickup_location}>
+        <Field id="bf-pickup_location" label="Pickup location" error={errors.pickup_location}
+          hint={locationStatus === 'detecting' ? 'Detecting your current location…' : locationStatus === 'detected' ? 'Pickup location detected. Add or edit the address or landmark if needed.' : locationStatus === 'denied' ? 'Location permission was denied. Enter your pickup address or landmark.' : 'Enter your pickup address or landmark.'}>
           <input id="bf-pickup_location" className={inputCls('pickup_location')} value={form.pickup_location} onChange={set('pickup_location')} placeholder="Where should we pick you up?" autoComplete="street-address" {...aria('pickup_location')} />
         </Field>
         <Field id="bf-destination" label="Destination" error={errors.destination}>
           <input id="bf-destination" className={inputCls('destination')} value={form.destination} onChange={set('destination')} placeholder="Where are you going?" {...aria('destination')} />
         </Field>
-        {mode !== 'quick' && <BookingMap points={mapPoints} onChange={setMapPoint} />}
         <Field id="bf-pickup_date" label="Date" error={errors.pickup_date}>
           <input id="bf-pickup_date" type="date" min={today} className={inputCls('pickup_date')} value={form.pickup_date} onChange={set('pickup_date')} {...aria('pickup_date')} />
         </Field>
         <Field id="bf-pickup_time" label="Time" error={errors.pickup_time}>
           <input id="bf-pickup_time" type="time" className={inputCls('pickup_time')} value={form.pickup_time} onChange={set('pickup_time')} {...aria('pickup_time')} />
-        </Field>
-        <Field id="bf-passengers" label="Passengers" error={errors.passengers}>
-          <input id="bf-passengers" type="number" min="1" max="50" inputMode="numeric" className={inputCls('passengers')} value={form.passengers} onChange={set('passengers')} {...aria('passengers')} />
         </Field>
         <Field id="bf-service_id" label="Service type" error={errors.service_id}>
           <select id="bf-service_id" className={inputCls('service_id')} value={form.service_id} onChange={set('service_id')} {...aria('service_id')}>
@@ -205,15 +225,6 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
         <Field id="bf-email" label="Email address" error={errors.email} hint="We’ll email you when your booking status changes.">
           <input id="bf-email" type="email" className={inputCls('email')} value={form.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" {...aria('email')} />
         </Field>
-        {mode !== 'quick' && categories.length > 0 && (
-          <Field id="bf-vehicle_type" label="Vehicle type (optional)" error={errors.vehicle_type}>
-            <select id="bf-vehicle_type" className={inputCls('vehicle_type')} value={form.vehicle_type} onChange={set('vehicle_type')}>
-              <option value="">No preference</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-        )}
-
         {showAirport && mode !== 'quick' && (
           <>
             <Field id="bf-airport_direction" label="Arrival or departure" error={errors.airport_direction}>
@@ -235,11 +246,6 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
           </>
         )}
 
-        {mode !== 'quick' && (
-          <Field id="bf-notes" label="Special requests (optional)" error={errors.notes} className="sm:col-span-2">
-            <textarea id="bf-notes" rows={3} className={inputCls('notes')} value={form.notes} onChange={set('notes')} placeholder="Child seat, extra stop, accessibility needs…" maxLength={1000} />
-          </Field>
-        )}
       </div>
 
       {servicesFailed && (

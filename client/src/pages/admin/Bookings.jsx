@@ -6,7 +6,6 @@ import useFetch from '../../hooks/useFetch.js';
 import { Badge, Empty, ErrorBox, Modal, PageHeader, Pager, Spinner, TableWrap } from '../../components/admin/ui.jsx';
 import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime, money } from '../../utils/format.js';
 import { prettyPhone } from '../../utils/phone.js';
-import BookingLocationMap from '../../components/admin/BookingLocationMap.jsx';
 
 const TERMINAL = ['COMPLETED', 'CANCELLED'];
 
@@ -172,20 +171,12 @@ function BookingDetail({ id, onClose, onChanged }) {
             <Row k="Service" v={b.service_name} />
             <Row k="Date" v={formatDate(b.pickup_date)} />
             <Row k="Time" v={formatTime(b.pickup_time)} />
-            <Row k="Passengers" v={b.passengers} />
-            {b.vehicle_type && <Row k="Vehicle type" v={b.vehicle_type} />}
             {b.airport_direction && <Row k="Direction" v={b.airport_direction === 'ARRIVAL' ? 'Arrival' : 'Departure'} />}
             {b.airport_name && <Row k="Airport" v={b.airport_name} />}
             {b.flight_number && <Row k="Flight" v={b.flight_number} />}
             {b.luggage_count != null && <Row k="Luggage" v={b.luggage_count} />}
             <Row k="Driver" v={b.driver_name ? `${b.driver_name}${b.vehicle_plate ? ` · ${b.vehicle_plate}` : ''}` : null} />
-            <div className="sm:col-span-2 lg:col-span-3"><dt className="text-xs font-bold uppercase tracking-wider text-night/50">Customer notes</dt><dd className="mt-0.5 whitespace-pre-line font-semibold">{b.notes || '—'}</dd></div>
           </dl>
-
-          <section className="admin-card">
-            <h3 className="mb-3 font-display text-base font-black uppercase">Pickup and destination map</h3>
-            <BookingLocationMap booking={b} />
-          </section>
 
           <section className="admin-card">
             <div className="flex items-start gap-3">

@@ -35,7 +35,7 @@ export default function BookingConfirmation({ result, onReset }) {
           {[
             ['Pickup', s.pickup_location], ['Destination', s.destination],
             ['Date', formatDate(s.pickup_date)], ['Time', s.pickup_time],
-            ['Passengers', s.passengers], ['Service', s.service_name],
+            ['Service', s.service_name],
           ].map(([k, v]) => (
             <div key={k}><dt className="text-xs font-bold uppercase tracking-wider text-night/50">{k}</dt><dd className="font-semibold">{v}</dd></div>
           ))}
