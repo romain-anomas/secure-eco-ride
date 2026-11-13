@@ -2,7 +2,7 @@ import { pool } from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { notFound } from '../utils/AppError.js';
 import * as bookings from '../services/bookingService.js';
-import { sendAdminBookingStatusEmail, sendBookingAdminEmail, sendCustomerBookingStatusEmail, sendTestEmail } from '../services/emailService.js';
+import { sendAdminBookingStatusEmail, sendBookingAdminEmail, sendCustomerBookingReceivedEmail, sendCustomerBookingStatusEmail, sendTestEmail } from '../services/emailService.js';
 import { sendBookingPush, sendDriverAssignmentPush } from '../services/pushService.js';
 
 const CUSTOMER_MESSAGE = 'Your booking has been received. Our team will contact you shortly.';
@@ -18,7 +18,12 @@ export const createBooking = asyncHandler(async (req, res) => {
   sendBookingPush(booking).catch((err) => console.error(`[booking ${booking.reference}] push dispatch failed code=${err.code || 'unknown_error'}`));
 
   // The booking is already saved. Notification problems must never undo it or reach the customer as an error.
-  sendBookingAdminEmail(booking).catch(() => {});
+  sendBookingAdminEmail(booking).then((result) => {
+    if (!result.sent) console.error(`[booking ${booking.reference}] admin receipt email not sent: ${result.reason}`);
+  }).catch((err) => console.error(`[booking ${booking.reference}] admin receipt email failed:`, err.message));
+  sendCustomerBookingReceivedEmail(booking).then((result) => {
+    if (!result.sent) console.error(`[booking ${booking.reference}] customer receipt email not sent: ${result.reason}`);
+  }).catch((err) => console.error(`[booking ${booking.reference}] customer receipt email failed:`, err.message));
 
   res.status(201).json({
     data: {

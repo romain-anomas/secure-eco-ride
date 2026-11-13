@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { Mail, Upload } from 'lucide-react';
 import { api, get, parseError, post, put, resolveAssetUrl } from '../../services/api.js';
 import { useSettings } from '../../context/SettingsContext.jsx';
 import { ErrorBox, PageHeader, Spinner } from '../../components/admin/ui.jsx';
@@ -41,6 +41,9 @@ export default function Settings() {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [emailTestBusy, setEmailTestBusy] = useState(false);
+  const [emailTestMessage, setEmailTestMessage] = useState('');
+  const [emailTestError, setEmailTestError] = useState('');
   const [pw, setPw] = useState({ current_password: '', new_password: '' });
   const [pwMsg, setPwMsg] = useState('');
   const [pwErr, setPwErr] = useState('');
@@ -70,6 +73,24 @@ export default function Settings() {
     setPwErr(''); setPwMsg('');
     try { await post('/auth/change-password', pw); setPwMsg('Password changed.'); setPw({ current_password: '', new_password: '' }); }
     catch (err) { setPwErr(parseError(err).message); }
+  }
+
+  async function testEmailDelivery() {
+    setEmailTestBusy(true);
+    setEmailTestMessage('');
+    setEmailTestError('');
+    try {
+      const result = await post('/email/test');
+      if (!result.data?.sent) {
+        setEmailTestError(result.data?.reason || 'The email test could not be sent.');
+        return;
+      }
+      setEmailTestMessage('The SMTP server accepted the test email. Check the configured admin inbox and its spam folder.');
+    } catch (err) {
+      setEmailTestError(err.response?.data?.data?.reason || parseError(err).message);
+    } finally {
+      setEmailTestBusy(false);
+    }
   }
 
   if (!form) return error ? <ErrorBox>{error}</ErrorBox> : <Spinner />;
@@ -112,6 +133,18 @@ export default function Settings() {
 
         <div className="sticky bottom-16 z-10 flex justify-end lg:bottom-4"><button type="submit" className="btn btn-primary shadow-lg" disabled={busy}>{busy ? 'Saving…' : 'Save settings'}</button></div>
       </form>
+
+      <section className="admin-card mt-8 max-w-3xl">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-leaf/10 text-moss"><Mail className="h-5 w-5" aria-hidden="true" /></span>
+          <div><h2 className="font-display text-lg font-black">Email delivery</h2><p className="mt-1 text-sm text-night/60">Send a test to the configured admin notification inbox to check SMTP delivery.</p></div>
+        </div>
+        {emailTestMessage && <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm font-medium text-green-800" role="status">{emailTestMessage}</p>}
+        <div className="mt-4"><ErrorBox>{emailTestError}</ErrorBox></div>
+        <button type="button" className="btn btn-outline btn-sm mt-4" disabled={emailTestBusy} onClick={testEmailDelivery}>
+          <Mail className="h-4 w-4" aria-hidden="true" />{emailTestBusy ? 'Sending test…' : 'Send test email'}
+        </button>
+      </section>
 
       <form onSubmit={changePw} className="admin-card mt-10 max-w-xl">
         <h2 className="font-display text-lg font-black uppercase">Change your password</h2>

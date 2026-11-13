@@ -72,7 +72,9 @@ export const createContact = asyncHandler(async (req, res) => {
   );
   const contact = { id: r.insertId, ...d, phone };
   sendContactNotification(contact).catch((e) => console.error('[contact] whatsapp notification failed:', e.message));
-  sendNotificationEmail(`New ${d.type.toLowerCase()} message from ${d.name}`, d.message).catch(() => {});
+  sendNotificationEmail(`New ${d.type.toLowerCase()} message from ${d.name}`, d.message).then((result) => {
+    if (!result.sent) console.error(`[contact ${r.insertId}] email notification not sent: ${result.reason}`);
+  }).catch((err) => console.error(`[contact ${r.insertId}] email notification failed:`, err.message));
   res.status(201).json(reply);
 });
 

@@ -4,17 +4,21 @@ import { config } from '../config/env.js';
 const enabled = () => Boolean(config.smtp.host && config.smtp.notifyTo.length);
 let transporter;
 
-/** Optional email notification. Silently skipped when SMTP_HOST / NOTIFY_EMAIL_TO are not set. */
+function getTransporter() {
+  transporter ||= nodemailer.createTransport({
+    host: config.smtp.host,
+    port: config.smtp.port,
+    secure: config.smtp.secure,
+    auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
+  });
+  return transporter;
+}
+
+/** Optional email notification. Skipped when SMTP_HOST / NOTIFY_EMAIL_TO are not set. */
 export async function sendNotificationEmail(subject, text) {
   if (!enabled()) return { sent: false, reason: 'SMTP not configured' };
   try {
-    transporter ||= nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
-      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-    });
-    await transporter.sendMail({ from: config.smtp.from, to: config.smtp.notifyTo, subject, text });
+    await getTransporter().sendMail({ from: config.smtp.from, to: config.smtp.notifyTo, subject, text });
     return { sent: true };
   } catch (err) {
     console.error('[email] failed:', err.message);
@@ -26,6 +30,45 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 const pickupMapUrl = (booking) => booking.pickup_latitude != null && booking.pickup_longitude != null
   ? `https://www.google.com/maps?q=${encodeURIComponent(`${booking.pickup_latitude},${booking.pickup_longitude}`)}`
   : null;
+
+/** Confirms receipt of a new booking to the customer. */
+export async function sendCustomerBookingReceivedEmail(booking) {
+  if (!booking.customer_email) return { sent: false, reason: 'Customer email not provided' };
+  if (!config.smtp.host) return { sent: false, reason: 'SMTP not configured' };
+  const rows = [
+    ['Booking reference', booking.reference],
+    ['Status', booking.status],
+    ['Pickup', booking.pickup_location],
+    ['Destination', booking.destination],
+    ['Date', booking.pickup_date],
+    ['Time', String(booking.pickup_time || '').slice(0, 5)],
+    ['Service', booking.service_name],
+    ['Pickup map', pickupMapUrl(booking)],
+  ].filter(([, value]) => value != null && value !== '');
+  const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${label === 'Pickup map' ? `<a href="${escapeHtml(value)}">Open pickup pin in Google Maps</a>` : escapeHtml(value)}</td></tr>`).join('');
+  try {
+    await getTransporter().sendMail({
+      from: config.smtp.from,
+      to: booking.customer_email,
+      subject: `Booking received — ${booking.reference}`,
+      text: [
+        `Hello ${booking.customer_name},`,
+        '',
+        `We received your Secure Eco Ride booking ${booking.reference}. It is currently pending review.`,
+        '',
+        ...rows.map(([label, value]) => `${label}: ${value}`),
+        '',
+        'Our team will contact you when your booking is reviewed.',
+        'Thank you for choosing Secure Eco Ride.',
+      ].join('\n'),
+      html: `<div style="font-family:Arial,sans-serif;color:#17251c;max-width:640px"><h1 style="font-size:22px">Booking received</h1><p>Hello ${escapeHtml(booking.customer_name)},</p><p>We received your Secure Eco Ride booking <strong>${escapeHtml(booking.reference)}</strong>. It is currently pending review.</p><table style="border-collapse:collapse;width:100%">${htmlRows}</table><p>Our team will contact you when your booking is reviewed.</p><p>Thank you for choosing Secure Eco Ride.</p></div>`,
+    });
+    return { sent: true };
+  } catch (err) {
+    console.error(`[email booking ${booking.reference}] customer receipt failed:`, err.message);
+    return { sent: false, reason: err.message };
+  }
+}
 
 /** Sends a structured admin booking notice after persistence; failures never affect the saved booking. */
 export async function sendBookingAdminEmail(booking) {
@@ -40,13 +83,7 @@ export async function sendBookingAdminEmail(booking) {
   const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${label === 'Pickup map' ? `<a href="${escapeHtml(value)}">Open pickup pin in Google Maps</a>` : escapeHtml(value)}</td></tr>`).join('');
   const text = rows.map(([label, value]) => `${label}: ${value}`).join('\n');
   try {
-    transporter ||= nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
-      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-    });
-    await transporter.sendMail({
+    await getTransporter().sendMail({
       from: config.smtp.from,
       to: config.smtp.notifyTo,
       subject: `New booking ${booking.reference}`,
@@ -89,11 +126,7 @@ export async function sendCustomerBookingStatusEmail(booking, previousStatus) {
     'Thank you for choosing Secure Eco Ride.',
   ].join('\n');
   try {
-    transporter ||= nodemailer.createTransport({
-      host: config.smtp.host, port: config.smtp.port, secure: config.smtp.secure,
-      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-    });
-    await transporter.sendMail({
+    await getTransporter().sendMail({
       from: config.smtp.from,
       to: booking.customer_email,
       subject: `Booking ${status} — ${booking.reference}`,
@@ -112,11 +145,7 @@ export async function sendAdminBookingStatusEmail(booking, previousStatus) {
   if (!enabled()) return { sent: false, reason: 'Admin email not configured' };
   const { status, previous, rows, htmlRows } = statusEmailContent(booking, previousStatus);
   try {
-    transporter ||= nodemailer.createTransport({
-      host: config.smtp.host, port: config.smtp.port, secure: config.smtp.secure,
-      auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-    });
-    await transporter.sendMail({
+    await getTransporter().sendMail({
       from: config.smtp.from,
       to: config.smtp.notifyTo,
       subject: `Booking ${status} — ${booking.reference}`,
@@ -133,8 +162,7 @@ export async function sendAdminBookingStatusEmail(booking, previousStatus) {
 export async function sendTestEmail() {
   if (!enabled()) return { sent: false, reason: 'Set SMTP_HOST and ADMIN_NOTIFICATION_EMAIL first.' };
   try {
-    transporter ||= nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, secure: config.smtp.secure, auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined });
-    await transporter.sendMail({
+    await getTransporter().sendMail({
       from: config.smtp.from, to: config.smtp.notifyTo,
       subject: 'Secure Eco Ride SMTP test',
       text: 'This is a test email from Secure Eco Ride. SMTP is configured to deliver booking notifications.',
