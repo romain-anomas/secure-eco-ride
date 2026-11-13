@@ -186,6 +186,7 @@ export async function dispatchBookingUpdate(id, { driver_id, status, note }, use
 
     const [[driver]] = await conn.query('SELECT id, vehicle_id, is_active, status FROM drivers WHERE id = ? FOR UPDATE', [driver_id]);
     if (!driver || !driver.is_active) throw badRequest('Choose an active driver.');
+    if (driver.status !== 'AVAILABLE' && booking.driver_id !== driver_id) throw badRequest('Choose an available driver.');
     if (ACTIVE_DRIVER_STATUSES.includes(status) && driver.status === 'OFFLINE') throw badRequest('This driver is unavailable. Choose an available driver.');
     if (ACTIVE_DRIVER_STATUSES.includes(status)) {
       const [conflicts] = await conn.query(

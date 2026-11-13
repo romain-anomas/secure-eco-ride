@@ -6,6 +6,7 @@ import { normalizePhone } from '../utils/phone.js';
 import { todayISO } from '../utils/format.js';
 import { DEFAULT_SERVICES } from '../utils/defaults.js';
 import BookingConfirmation from './BookingConfirmation.jsx';
+import BookingMap from './BookingMap.jsx';
 import PhoneInput from './PhoneInput.jsx';
 import { DEFAULT_PHONE_COUNTRY } from '../utils/phoneCountries.js';
 import { useSettings } from '../context/SettingsContext.jsx';
@@ -69,8 +70,12 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     return () => { alive = false; };
   }, [mode]);
 
-  const detectPickupLocation = useCallback(() => {
+  const detectPickupLocation = useCallback(({ force = false } = {}) => {
     const requestId = ++locationRequest.current;
+    if (pickupEdited.current && !force) {
+      setLocationStatus('manual');
+      return;
+    }
     if (!navigator.geolocation) {
       setLocationStatus('unavailable');
       return;
@@ -84,7 +89,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
       }
       setForm((current) => ({
         ...current,
-        pickup_location: current.pickup_location.trim() ? current.pickup_location : 'Current location',
+        pickup_location: current.pickup_location.trim() && !['Current location', 'Pinned map location'].includes(current.pickup_location) ? current.pickup_location : 'Current location',
         pickup_latitude: String(coords.latitude),
         pickup_longitude: String(coords.longitude),
       }));
@@ -96,10 +101,6 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
   }, []);
 
   useEffect(() => {
-    if (params.get('pickup_location')?.trim()) {
-      setLocationStatus('manual');
-      return undefined;
-    }
     detectPickupLocation();
     return () => { locationRequest.current += 1; };
   }, [params, detectPickupLocation]);
@@ -119,10 +120,31 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
 
   const set = (k) => (e) => {
     submissionKey.current = null;
-    if (k === 'pickup_location') pickupEdited.current = true;
+    if (k === 'pickup_location') {
+      pickupEdited.current = true;
+      locationRequest.current += 1;
+      setLocationStatus('manual');
+    }
     setForm((f) => ({ ...f, [k]: e.target.value }));
     if (errors[k]) setErrors((x) => ({ ...x, [k]: undefined }));
   };
+
+  const pickupPoint = form.pickup_latitude !== '' && form.pickup_longitude !== ''
+    ? { latitude: Number(form.pickup_latitude), longitude: Number(form.pickup_longitude) }
+    : null;
+
+  function setPickupPoint(latitude, longitude) {
+    pickupEdited.current = true;
+    submissionKey.current = null;
+    setLocationStatus('detected');
+    setForm((current) => ({
+      ...current,
+      pickup_location: current.pickup_location.trim() ? current.pickup_location : 'Pinned map location',
+      pickup_latitude: String(latitude),
+      pickup_longitude: String(longitude),
+    }));
+    setErrors((current) => ({ ...current, pickup_location: undefined, pickup_pin: undefined }));
+  }
 
   function validate() {
     const e = {};
@@ -131,6 +153,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     if (!form.email.trim()) e.email = 'Enter your email address';
     else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = 'Enter a valid email address';
     if (form.pickup_location.trim().length < 2) e.pickup_location = 'Enter the pickup location';
+    if (!pickupPoint) e.pickup_pin = 'Detect your location or select a pickup pin on the map';
     if (form.destination.trim().length < 2) e.destination = 'Enter the destination';
     if (!form.pickup_date) e.pickup_date = 'Choose a date';
     else if (form.pickup_date < today) e.pickup_date = 'The date cannot be in the past';
@@ -149,7 +172,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) {
-      document.getElementById(`bf-${Object.keys(e)[0]}`)?.focus();
+      document.getElementById(Object.keys(e)[0] === 'pickup_pin' ? 'bf-pickup_pin' : `bf-${Object.keys(e)[0]}`)?.focus();
       return;
     }
     submissionKey.current ||= globalThis.crypto?.randomUUID?.();
@@ -197,12 +220,13 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
 
       <div className={grid}>
         <Field id="bf-pickup_location" label="Pickup location" error={errors.pickup_location}
-          hint={locationStatus === 'detecting' ? 'Detecting your current location…' : locationStatus === 'detected' ? 'Pickup location detected. Add or edit the address or landmark if needed.' : locationStatus === 'denied' ? 'Location permission was denied. Enter your pickup address or landmark.' : 'Enter your pickup address or landmark.'}>
+          hint="Add an address or landmark to help your driver find you. The required map pin is shown below.">
           <input id="bf-pickup_location" className={inputCls('pickup_location')} value={form.pickup_location} onChange={set('pickup_location')} placeholder="Where should we pick you up?" autoComplete="street-address" {...aria('pickup_location')} />
         </Field>
         <Field id="bf-destination" label="Destination" error={errors.destination}>
           <input id="bf-destination" className={inputCls('destination')} value={form.destination} onChange={set('destination')} placeholder="Where are you going?" {...aria('destination')} />
         </Field>
+        <BookingMap point={pickupPoint} onChange={setPickupPoint} onLocate={() => detectPickupLocation({ force: true })} locationStatus={locationStatus} error={errors.pickup_pin} />
         <Field id="bf-pickup_date" label="Date" error={errors.pickup_date}>
           <input id="bf-pickup_date" type="date" min={today} className={inputCls('pickup_date')} value={form.pickup_date} onChange={set('pickup_date')} {...aria('pickup_date')} />
         </Field>

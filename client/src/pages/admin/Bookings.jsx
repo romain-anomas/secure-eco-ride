@@ -6,6 +6,7 @@ import useFetch from '../../hooks/useFetch.js';
 import { Badge, Empty, ErrorBox, Modal, PageHeader, Pager, Spinner, TableWrap } from '../../components/admin/ui.jsx';
 import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime, money } from '../../utils/format.js';
 import { prettyPhone } from '../../utils/phone.js';
+import BookingLocationMap from '../../components/admin/BookingLocationMap.jsx';
 
 const TERMINAL = ['COMPLETED', 'CANCELLED'];
 
@@ -179,16 +180,21 @@ function BookingDetail({ id, onClose, onChanged }) {
           </dl>
 
           <section className="admin-card">
+            <h3 className="mb-3 font-display text-base font-black uppercase">Customer pickup pin</h3>
+            <BookingLocationMap booking={b} />
+          </section>
+
+          <section className="admin-card">
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-leaf/15 text-moss"><Send className="h-5 w-5" aria-hidden="true" /></span>
               <div><h3 className="font-display text-base font-black uppercase">Review, assign &amp; send passenger update</h3>
-                <p className="mt-1 text-sm text-night/60">Choose an active driver and status. Press Send when you have checked the booking. The passenger and admin inbox receive the trip and driver details by email.</p></div>
+                <p className="mt-1 text-sm text-night/60">Choose an available driver and status. Press Send after reviewing the booking. The assigned driver receives the trip and pickup pin in their job details; the passenger and admin inbox receive the trip and driver details by email.</p></div>
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block"><span className="label">Assign active driver</span>
+              <label className="block"><span className="label">Assign available driver</span>
                 <select className="input" aria-label="Assign active driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={locked || drivers.loading}>
                   <option value="">Choose a driver</option>
-                  {(drivers.data || []).filter((d) => d.is_active).map((d) => <option key={d.id} value={d.id}>{d.name} · {d.status.toLowerCase()}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
+                  {(drivers.data || []).filter((d) => d.is_active && (d.status === 'AVAILABLE' || String(d.id) === String(b.driver_id))).map((d) => <option key={d.id} value={d.id}>{d.name} · {d.status.toLowerCase()}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
                 </select>
               </label>
               <label className="block"><span className="label">Passenger email status</span>
@@ -197,12 +203,12 @@ function BookingDetail({ id, onClose, onChanged }) {
                 </select>
               </label>
             </div>
-            {!drivers.loading && !(drivers.data || []).filter((d) => d.is_active).length && <p className="mt-3 text-sm text-amber-800">No active drivers are available. Add or activate a driver before sending this update.</p>}
+            {!drivers.loading && !(drivers.data || []).filter((d) => d.is_active && (d.status === 'AVAILABLE' || String(d.id) === String(b.driver_id))).length && <p className="mt-3 text-sm text-amber-800">No available drivers. A driver must be active and available before assignment.</p>}
             <label className="mt-4 block"><span className="label">Note for booking history (optional)</span>
               <input className="input" placeholder="Add an internal note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} />
             </label>
             <div className="mt-4 flex flex-col gap-3 border-t border-night/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-night/55">Email goes to <strong>{b.customer_email || 'No passenger email saved'}</strong> and the configured admin inbox.</p>
+              <p className="text-xs text-night/55">The assigned driver will receive the pickup pin in their job details. Email goes to <strong>{b.customer_email || 'No passenger email saved'}</strong> and the configured admin inbox.</p>
               <button type="button" className="btn btn-primary w-full sm:w-auto" disabled={!driverId || busy === 'dispatch' || locked || drivers.loading} onClick={sendUpdate}>
                 <Send className="h-4 w-4" aria-hidden="true" /> {busy === 'dispatch' ? 'Saving & sending…' : 'Save assignment & send'}
               </button>

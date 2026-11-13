@@ -23,6 +23,9 @@ export async function sendNotificationEmail(subject, text) {
 }
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const pickupMapUrl = (booking) => booking.pickup_latitude != null && booking.pickup_longitude != null
+  ? `https://www.google.com/maps?q=${encodeURIComponent(`${booking.pickup_latitude},${booking.pickup_longitude}`)}`
+  : null;
 
 /** Sends a structured admin booking notice after persistence; failures never affect the saved booking. */
 export async function sendBookingAdminEmail(booking) {
@@ -32,8 +35,9 @@ export async function sendBookingAdminEmail(booking) {
     ['Phone', booking.customer_phone], ['Email', booking.customer_email], ['Pickup', booking.pickup_location],
     ['Destination', booking.destination], ['Requested date', booking.pickup_date], ['Requested time', booking.pickup_time],
     ['Service', booking.service_name], ['Passengers', booking.passengers], ['Created', booking.created_at],
+    ['Pickup map', pickupMapUrl(booking)],
   ].filter(([, value]) => value != null && value !== '');
-  const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(value)}</td></tr>`).join('');
+  const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${label === 'Pickup map' ? `<a href="${escapeHtml(value)}">Open pickup pin in Google Maps</a>` : escapeHtml(value)}</td></tr>`).join('');
   const text = rows.map(([label, value]) => `${label}: ${value}`).join('\n');
   try {
     transporter ||= nodemailer.createTransport({
@@ -64,10 +68,11 @@ function statusEmailContent(booking, previousStatus) {
     ['Pickup', booking.pickup_location], ['Destination', booking.destination],
     ['Date', booking.pickup_date], ['Time', String(booking.pickup_time || '').slice(0, 5)],
     ['Service', booking.service_name],
+    ['Pickup map', pickupMapUrl(booking)],
     ['Assigned driver', booking.driver_name], ['Driver phone', booking.driver_phone],
     ['Vehicle', booking.vehicle_name], ['Vehicle registration', booking.vehicle_plate],
   ].filter(([, value]) => value != null && value !== '');
-  const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(value)}</td></tr>`).join('');
+  const htmlRows = rows.map(([label, value]) => `<tr><th align="left" style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(label)}</th><td style="padding:8px;border-bottom:1px solid #e5e7eb">${label === 'Pickup map' ? `<a href="${escapeHtml(value)}">Open pickup pin in Google Maps</a>` : escapeHtml(value)}</td></tr>`).join('');
   return { status, previous, rows, htmlRows };
 }
 

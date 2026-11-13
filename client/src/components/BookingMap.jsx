@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,56 +7,53 @@ import markerRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
 const DEFAULT_CENTER = [-1.9441, 30.0619];
-const icon = new L.Icon({
-  iconUrl: markerUrl,
-  iconRetinaUrl: markerRetinaUrl,
-  shadowUrl,
-  iconSize: [25, 41], iconAnchor: [12, 41],
-});
+const icon = new L.Icon({ iconUrl: markerUrl, iconRetinaUrl: markerRetinaUrl, shadowUrl, iconSize: [25, 41], iconAnchor: [12, 41] });
 
-function ClickPicker({ onPick }) {
-  useMapEvents({ click: (e) => onPick(e.latlng.lat, e.latlng.lng) });
+function PickupPicker({ onPick }) {
+  useMapEvents({ click: (event) => onPick(event.latlng.lat, event.latlng.lng) });
   return null;
 }
 
 function Recenter({ point }) {
   const map = useMap();
-  useEffect(() => { map.setView(point || DEFAULT_CENTER, point ? 15 : 12); }, [map, point?.[0], point?.[1]]);
+  useEffect(() => {
+    map.setView(point || DEFAULT_CENTER, point ? 16 : 12);
+  }, [map, point?.[0], point?.[1]]);
   return null;
 }
 
-export default function BookingMap({ points, onChange }) {
-  const [target, setTarget] = useState('pickup');
-  const [message, setMessage] = useState('');
-  const current = points[target];
-  const center = current ? [current.latitude, current.longitude] : DEFAULT_CENTER;
+export default function BookingMap({ point, onChange, onLocate, locationStatus, error }) {
+  const center = point ? [point.latitude, point.longitude] : DEFAULT_CENTER;
+  const statusText = {
+    detecting: 'Detecting your current location…',
+    detected: 'Pickup pin detected. You can drag it or tap the map to adjust it.',
+    denied: 'Location permission was denied. Tap the map to set your pickup pin.',
+    unavailable: 'Could not detect your location. Tap the map to set your pickup pin.',
+    manual: 'Tap the map to set your pickup pin.',
+  }[locationStatus];
 
-  function locate() {
-    setMessage('');
-    if (!navigator.geolocation) { setMessage('Location is not available in this browser. You can select the map manually.'); return; }
-    setMessage('Requesting your location…');
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      onChange(target, coords.latitude, coords.longitude);
-      setMessage(coords.accuracy > 100 ? `Location accuracy is about ${Math.round(coords.accuracy)} m. Adjust the pin if needed.` : 'Location added. Drag the pin to adjust it.');
-    }, (e) => setMessage(e.code === 1 ? 'Location permission was denied. Select your location on the map instead.' : 'Could not get your location. Select the map manually.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
-  }
-
-  return <section className="mt-5 rounded-2xl border border-night/10 p-4 sm:col-span-2" aria-label="Optional pickup and destination map">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h3 className="font-bold">Add map locations (optional)</h3><p className="text-xs text-night/55">Only share your current location if you choose to. Drag the pin or click the map.</p></div>
-      <div className="flex gap-2">
-        {['pickup', 'destination'].map((which) => <button key={which} type="button" onClick={() => setTarget(which)} className={`btn btn-sm ${target === which ? 'btn-primary' : 'btn-outline'}`}>{which === 'pickup' ? 'Pickup pin' : 'Destination pin'}</button>)}
+  return <section id="bf-pickup_pin" tabIndex={-1} className="rounded-2xl border border-night/10 p-4 focus:outline-none sm:col-span-2" aria-labelledby="pickup-map-title">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 id="pickup-map-title" className="font-bold">Choose pickup on map <span className="text-red-600" aria-hidden="true">*</span></h3>
+        <p className="mt-1 text-xs text-night/60">Your pickup pin will be sent to the admin and assigned driver. Drag the pin or tap the map to adjust it.</p>
+        <p className="mt-2 text-sm text-night/75" role="status" aria-live="polite">{statusText}</p>
+        {point && <p className="mt-1 text-xs text-night/55">Pin: {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</p>}
+        {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
       </div>
+      <button type="button" className="btn btn-outline btn-sm" onClick={onLocate} disabled={locationStatus === 'detecting'}>
+        {locationStatus === 'detecting' ? 'Detecting…' : 'Detect my location'}
+      </button>
     </div>
-    <button type="button" className="btn btn-outline btn-sm mt-3" onClick={locate}>Use My Current Location</button>
-    {message && <p className="mt-2 text-sm text-night/70" role="status">{message}</p>}
     <div className="mt-3 h-64 overflow-hidden rounded-xl">
-      <MapContainer center={center} zoom={current ? 15 : 12} className="h-full w-full" scrollWheelZoom>
+      <MapContainer center={center} zoom={point ? 16 : 12} className="h-full w-full" scrollWheelZoom>
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <Recenter point={center} />
-        <ClickPicker onPick={(lat, lng) => onChange(target, lat, lng)} />
-        {points.pickup && <Marker position={[points.pickup.latitude, points.pickup.longitude]} icon={icon} draggable eventHandlers={{ dragend: (e) => { const p = e.target.getLatLng(); onChange('pickup', p.lat, p.lng); } }} />}
-        {points.destination && <Marker position={[points.destination.latitude, points.destination.longitude]} icon={icon} draggable eventHandlers={{ dragend: (e) => { const p = e.target.getLatLng(); onChange('destination', p.lat, p.lng); } }} />}
+        <PickupPicker onPick={onChange} />
+        {point && <Marker position={[point.latitude, point.longitude]} icon={icon} draggable eventHandlers={{ dragend: (event) => {
+          const position = event.target.getLatLng();
+          onChange(position.lat, position.lng);
+        } }} />}
       </MapContainer>
     </div>
   </section>;

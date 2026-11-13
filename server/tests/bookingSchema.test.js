@@ -12,11 +12,16 @@ const booking = (overrides = {}) => ({
   customer_name: 'Test Customer', phone: '0793157373', email: 'test@example.com',
   pickup_location: 'Kigali city', destination: 'Kigali airport',
   pickup_date: tomorrow(), pickup_time: '12:30', passengers: 1, service_id: 1,
+  pickup_latitude: -1.9441, pickup_longitude: 30.0619,
   ...overrides,
 });
 
-test('booking coordinates are optional for legacy-compatible requests', () => {
+test('pickup map coordinates are required and destination coordinates remain optional', () => {
   assert.equal(createBookingSchema.safeParse(booking()).success, true);
+  const missingPickupPin = booking();
+  delete missingPickupPin.pickup_latitude;
+  delete missingPickupPin.pickup_longitude;
+  assert.equal(createBookingSchema.safeParse(missingPickupPin).success, false);
 });
 
 test('valid coordinates and email are accepted', () => {
@@ -27,7 +32,10 @@ test('valid coordinates and email are accepted', () => {
 
 test('invalid and incomplete coordinate pairs are rejected', () => {
   assert.equal(createBookingSchema.safeParse(booking({ pickup_latitude: 91, pickup_longitude: 30 })).success, false);
-  assert.equal(createBookingSchema.safeParse(booking({ pickup_latitude: -1.9 })).success, false);
+  const missingLongitude = booking();
+  delete missingLongitude.pickup_longitude;
+  assert.equal(createBookingSchema.safeParse(missingLongitude).success, false);
+  assert.equal(createBookingSchema.safeParse(booking({ pickup_latitude: null })).success, false);
 });
 
 test('invalid or missing email is rejected for new bookings', () => {

@@ -261,6 +261,9 @@ export async function sendDriverAssignmentPush(booking, dispatchEventId) {
     `Passenger: ${booking.customer_name || 'Customer'}`,
     booking.customer_phone ? `Phone: ${booking.customer_phone}` : null,
     `Pickup: ${booking.pickup_location}`,
+    booking.pickup_latitude != null && booking.pickup_longitude != null
+      ? `Pickup map: https://www.google.com/maps?q=${encodeURIComponent(`${booking.pickup_latitude},${booking.pickup_longitude}`)}`
+      : null,
     `Destination: ${booking.destination}`,
     pickupLabel(booking),
     `Status: ${booking.status}`,
