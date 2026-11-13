@@ -141,6 +141,23 @@ export async function changeStatus(id, status, userId, note) {
   return { booking: await getBookingById(id), previousStatus };
 }
 
+export async function decideBooking(id, decision, userId) {
+  const status = decision === 'ACCEPT' ? 'CONFIRMED' : 'CANCELLED';
+  const previousStatus = await withTransaction(async (conn) => {
+    const [[current]] = await conn.query('SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE', [id]);
+    if (!current) throw badRequest('Booking not found');
+    if (current.status !== 'PENDING') throw badRequest('Only pending bookings can be accepted or rejected.');
+    await conn.query('UPDATE bookings SET status = ?, seen_by_admin = 1 WHERE id = ?', [status, id]);
+    await conn.query(
+      'INSERT INTO booking_status_history (booking_id, from_status, to_status, changed_by, note) VALUES (?,?,?,?,?)',
+      [id, current.status, status, userId, decision === 'ACCEPT' ? 'Booking accepted' : 'Booking rejected'],
+    );
+    await refreshDriverStatus(conn, current.driver_id);
+    return current.status;
+  });
+  return { booking: await getBookingById(id), previousStatus };
+}
+
 export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
   await withTransaction(async (conn) => {
     const [[booking]] = await conn.query('SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE', [id]);

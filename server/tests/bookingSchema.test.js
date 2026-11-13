@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createBookingSchema } from '../src/validators/schemas.js';
+import { bookingDecisionSchema, createBookingSchema } from '../src/validators/schemas.js';
 import { todayInTz } from '../src/utils/dates.js';
 
 const tomorrow = () => {
@@ -43,4 +43,10 @@ test('invalid or missing email is rejected for new bookings', () => {
   const request = booking();
   delete request.email;
   assert.equal(createBookingSchema.safeParse(request).success, false);
+});
+
+test('booking decision only accepts accept or reject', () => {
+  assert.equal(bookingDecisionSchema.safeParse({ decision: 'ACCEPT' }).success, true);
+  assert.equal(bookingDecisionSchema.safeParse({ decision: 'REJECT' }).success, true);
+  assert.equal(bookingDecisionSchema.safeParse({ decision: 'CANCELLED' }).success, false);
 });

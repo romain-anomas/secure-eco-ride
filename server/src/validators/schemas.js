@@ -44,6 +44,7 @@ export const listBookingsQuery = z.object({
 });
 
 export const statusSchema = z.object({ status: z.enum(BOOKING_STATUSES), note: optionalText(255) });
+export const bookingDecisionSchema = z.object({ decision: z.enum(['ACCEPT', 'REJECT']) });
 export const assignSchema = z.object({ driver_id: z.coerce.number().int().positive(), vehicle_id: optionalInt(1) });
 export const dispatchSchema = z.object({
   driver_id: z.coerce.number().int().positive(),

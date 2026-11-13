@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Eye, RefreshCw, Search, Send } from 'lucide-react';
-import { parseError, patch, post } from '../../services/api.js';
+import { Check, Eye, RefreshCw, Search, Send, X } from 'lucide-react';
+import { parseError, post } from '../../services/api.js';
 import useFetch from '../../hooks/useFetch.js';
 import { Badge, Empty, ErrorBox, Modal, PageHeader, Pager, Spinner, TableWrap } from '../../components/admin/ui.jsx';
-import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime, money } from '../../utils/format.js';
+import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime } from '../../utils/format.js';
 import { prettyPhone } from '../../utils/phone.js';
 import BookingLocationMap from '../../components/admin/BookingLocationMap.jsx';
-
-const TERMINAL = ['COMPLETED', 'CANCELLED'];
 
 export default function Bookings() {
   const { id: routeId } = useParams();
@@ -120,16 +118,13 @@ function Row({ k, v }) {
 function BookingDetail({ id, onClose, onChanged }) {
   const { data: b, loading, error, reload } = useFetch(`/bookings/${id}`);
   const drivers = useFetch('/drivers', { initial: [] });
-  const [status, setStatus] = useState('');
-  const [note, setNote] = useState('');
   const [driverId, setDriverId] = useState('');
-  const [notes, setNotes] = useState({ admin_notes: '', quoted_price: '' });
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
 
   useEffect(() => {
-    if (b) { setStatus(b.status); setDriverId(b.driver_id || ''); setNotes({ admin_notes: b.admin_notes || '', quoted_price: b.quoted_price ?? '' }); }
+    if (b) setDriverId(b.driver_id || '');
   }, [b?.id, b?.status, b?.driver_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(name, fn, done) {
@@ -137,24 +132,15 @@ function BookingDetail({ id, onClose, onChanged }) {
     try { const result = await fn(); setMsg(typeof done === 'function' ? done(result) : done); await reload(); onChanged?.(); } catch (e) { setErr(parseError(e).message); } finally { setBusy(''); }
   }
 
-  const sendUpdate = () => run('dispatch', () => post(`/bookings/${id}/send-update`, { driver_id: Number(driverId), status, note: note || null }), (response) => {
+  const resultMessage = (response, action) => {
     const emailState = response.meta?.status_emails;
-    if (emailState?.customer === 'SENT' && emailState?.admin === 'SENT') return 'Booking saved. Email sent to the passenger and admin inbox.';
-    if (emailState?.customer === 'NO_EMAIL') return 'Booking saved and admin emailed, but this older booking has no passenger email address.';
-    if (emailState?.customer === 'FAILED' || emailState?.admin === 'FAILED') return 'Booking saved, but one or more emails failed. Check SMTP settings and server logs.';
-    return 'Booking saved and email sent.';
-  }).then(() => setNote(''));
-  const saveNotes = () => {
-    if (notes.quoted_price !== '') {
-      const quote = Number(notes.quoted_price);
-      if (!Number.isFinite(quote) || quote < 0 || quote > 9_999_999_999.99) {
-        setErr('Quoted price must be a number from 0 to 9,999,999,999.99.');
-        return;
-      }
-    }
-    return run('notes', () => patch(`/bookings/${id}`, { admin_notes: notes.admin_notes, quoted_price: notes.quoted_price === '' ? null : Number(notes.quoted_price) }), 'Notes saved.');
+    if (emailState?.customer === 'SENT' && emailState?.admin === 'SENT') return `${action} Booking. Email sent to the passenger and admin inbox.`;
+    if (emailState?.customer === 'NO_EMAIL') return `${action} Booking. Admin emailed, but no passenger email is saved.`;
+    if (emailState?.customer === 'FAILED' || emailState?.admin === 'FAILED') return `${action} Booking, but one or more emails failed. Check SMTP settings and server logs.`;
+    return `${action} Booking.`;
   };
-  const locked = b && TERMINAL.includes(b.status);
+  const decide = (decision) => run(decision.toLowerCase(), () => post(`/bookings/${id}/decision`, { decision }), (response) => resultMessage(response, decision === 'ACCEPT' ? 'Accepted' : 'Rejected'));
+  const assignDriver = () => run('assign', () => post(`/bookings/${id}/send-update`, { driver_id: Number(driverId), status: 'ASSIGNED' }), (response) => resultMessage(response, 'Driver assigned to'));
   return (
     <Modal title={b ? `Booking ${b.reference}` : 'Booking'} onClose={onClose} wide>
       {loading && !b ? <Spinner /> : error ? <ErrorBox>{parseError(error).message}</ErrorBox> : b && (
@@ -184,64 +170,41 @@ function BookingDetail({ id, onClose, onChanged }) {
             <BookingLocationMap booking={b} />
           </section>
 
-          <section className="admin-card">
-            <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-leaf/15 text-moss"><Send className="h-5 w-5" aria-hidden="true" /></span>
-              <div><h3 className="font-display text-base font-black uppercase">Review, assign &amp; send passenger update</h3>
-                <p className="mt-1 text-sm text-night/60">Choose an available driver and status. Press Send after reviewing the booking. The assigned driver receives the trip and pickup pin in their job details; the passenger and admin inbox receive the trip and driver details by email.</p></div>
-            </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block"><span className="label">Assign available driver</span>
-                <select className="input" aria-label="Assign active driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={locked || drivers.loading}>
-                  <option value="">Choose a driver</option>
-                  {(drivers.data || []).filter((d) => d.is_active && (d.status === 'AVAILABLE' || String(d.id) === String(b.driver_id))).map((d) => <option key={d.id} value={d.id}>{d.name} · {d.status.toLowerCase()}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
-                </select>
-              </label>
-              <label className="block"><span className="label">Passenger email status</span>
-                <select className="input" aria-label="Passenger email status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={locked}>
-                  {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-                </select>
-              </label>
-            </div>
-            {!drivers.loading && !(drivers.data || []).filter((d) => d.is_active && (d.status === 'AVAILABLE' || String(d.id) === String(b.driver_id))).length && <p className="mt-3 text-sm text-amber-800">No available drivers. A driver must be active and available before assignment.</p>}
-            <label className="mt-4 block"><span className="label">Note for booking history (optional)</span>
-              <input className="input" placeholder="Add an internal note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} />
-            </label>
-            <div className="mt-4 flex flex-col gap-3 border-t border-night/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-night/55">The assigned driver will receive the pickup pin in their job details. Email goes to <strong>{b.customer_email || 'No passenger email saved'}</strong> and the configured admin inbox.</p>
-              <button type="button" className="btn btn-primary w-full sm:w-auto" disabled={!driverId || busy === 'dispatch' || locked || drivers.loading} onClick={sendUpdate}>
-                <Send className="h-4 w-4" aria-hidden="true" /> {busy === 'dispatch' ? 'Saving & sending…' : 'Save assignment & send'}
+          {b.status === 'PENDING' && <section className="admin-card">
+            <h3 className="font-display text-base font-black uppercase">Booking decision</h3>
+            <p className="mt-1 text-sm text-night/60">Accept this booking to continue to driver assignment, or reject it.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={() => decide('ACCEPT')}>
+                <Check className="h-4 w-4" aria-hidden="true" /> {busy === 'accept' ? 'Accepting…' : 'Accept booking'}
+              </button>
+              <button type="button" className="btn btn-danger" disabled={Boolean(busy)} onClick={() => decide('REJECT')}>
+                <X className="h-4 w-4" aria-hidden="true" /> {busy === 'reject' ? 'Rejecting…' : 'Reject booking'}
               </button>
             </div>
-          </section>
+          </section>}
 
-          <section className="admin-card">
-            <h3 className="font-display text-base font-black uppercase">Internal notes &amp; quoted price</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_12rem]">
-              <textarea className="input" rows={3} placeholder="Notes only your team sees" value={notes.admin_notes} onChange={(e) => setNotes((n) => ({ ...n, admin_notes: e.target.value }))} />
-              <input className="input" type="number" min="0" max="9999999999.99" step="0.01" placeholder="Quoted price" aria-label="Quoted price" value={notes.quoted_price} onChange={(e) => setNotes((n) => ({ ...n, quoted_price: e.target.value }))} />
+          {b.status === 'CONFIRMED' && <section className="admin-card">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-leaf/15 text-moss"><Send className="h-5 w-5" aria-hidden="true" /></span>
+              <div><h3 className="font-display text-base font-black uppercase">Assign an available driver</h3>
+                <p className="mt-1 text-sm text-night/60">The assigned driver will receive the booking and pickup pin in their job details. The passenger and admin inbox receive the driver assignment by email.</p></div>
             </div>
-            {b.quoted_price != null && <p className="mt-2 text-sm text-night/60">Current quote: {money(b.quoted_price)}</p>}
-            <button type="button" className="btn btn-outline btn-sm mt-3" disabled={busy === 'notes'} onClick={saveNotes}>Save notes</button>
-          </section>
-
-          <section>
-            <h3 className="font-display text-base font-black uppercase">History</h3>
-            <ol className="mt-3 space-y-2 border-l-2 border-leaf/50 pl-4 text-sm">
-              {b.history.map((h) => (
-                <li key={h.id}><Badge value={h.to_status} /> <span className="text-night/60">{formatDateTime(h.created_at)}{h.changed_by_name ? ` · ${h.changed_by_name}` : ''}</span>{h.note && <span className="block text-night/75">{h.note}</span>}</li>
-              ))}
-            </ol>
-          </section>
-          <section>
-            <h3 className="font-display text-base font-black uppercase">Driver assignment history</h3>
-            {b.assignment_history?.length ? <ol className="mt-3 space-y-2 border-l-2 border-leaf/50 pl-4 text-sm">
-              {b.assignment_history.map((a) => <li key={a.id}>
-                <strong>{a.driver_name}</strong>{a.previous_driver_name ? ` (reassigned from ${a.previous_driver_name})` : ''}
-                <span className="text-night/60"> · {formatDateTime(a.assigned_at)}{a.assigned_by_name ? ` · ${a.assigned_by_name}` : ''}</span>
-              </li>)}
-            </ol> : <p className="mt-2 text-sm text-night/60">No assignment changes recorded yet.</p>}
-          </section>
+            <div className="mt-5">
+              <label className="block"><span className="label">Available driver</span>
+                <select className="input" aria-label="Assign available driver" value={driverId} onChange={(e) => setDriverId(e.target.value)} disabled={drivers.loading || Boolean(busy)}>
+                  <option value="">Choose a driver</option>
+                  {(drivers.data || []).filter((d) => d.is_active && d.status === 'AVAILABLE').map((d) => <option key={d.id} value={d.id}>{d.name}{d.vehicle_name ? ` · ${d.vehicle_name}` : ''}</option>)}
+                </select>
+              </label>
+            </div>
+            {!drivers.loading && !(drivers.data || []).some((d) => d.is_active && d.status === 'AVAILABLE') && <p className="mt-3 text-sm text-amber-800">No drivers are currently available. Make a driver available before assigning this booking.</p>}
+            <div className="mt-4 flex flex-col gap-3 border-t border-night/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-night/55">Assigning changes the booking status to Driver assigned.</p>
+              <button type="button" className="btn btn-primary w-full sm:w-auto" disabled={!driverId || busy === 'assign' || drivers.loading} onClick={assignDriver}>
+                <Send className="h-4 w-4" aria-hidden="true" /> {busy === 'assign' ? 'Assigning…' : 'Assign driver'}
+              </button>
+            </div>
+          </section>}
         </div>
       )}
     </Modal>

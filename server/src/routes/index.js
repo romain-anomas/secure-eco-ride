@@ -29,6 +29,7 @@ router.post('/auth/change-password', authenticate, validate(S.changePasswordSche
 router.post('/bookings', bookingLimiter, validate(S.createBookingSchema), bookings.createBooking);
 router.get('/bookings', authenticate, staffOrAdmin, validate(S.listBookingsQuery, 'query'), bookings.listBookings);
 router.get('/bookings/unseen-count', authenticate, staffOrAdmin, bookings.unseenCount);
+router.post('/bookings/:id/decision', authenticate, staffOrAdmin, id, validate(S.bookingDecisionSchema), bookings.decideBooking);
 router.post('/email/test', authenticate, adminOnly, bookings.testEmail);
 router.get('/push/status', authenticate, adminOnly, push.status);
 router.post('/push/devices', authenticate, adminOnly, push.registerDevice);

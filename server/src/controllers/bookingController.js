@@ -84,6 +84,21 @@ export const sendBookingUpdate = asyncHandler(async (req, res) => {
   res.json({ data: booking, meta: { status_emails: emailStatus } });
 });
 
+export const decideBooking = asyncHandler(async (req, res) => {
+  const { booking, previousStatus } = await bookings.decideBooking(req.params.id, req.body.decision, req.user.id);
+  const [customerResult, adminResult] = await Promise.all([
+    sendCustomerBookingStatusEmail(booking, previousStatus),
+    sendAdminBookingStatusEmail(booking, previousStatus),
+  ]);
+  const emailStatus = {
+    customer: customerResult.sent ? 'SENT' : customerResult.reason === 'Customer email not provided' ? 'NO_EMAIL' : 'FAILED',
+    admin: adminResult.sent ? 'SENT' : 'FAILED',
+  };
+  if (!customerResult.sent) console.error(`[booking ${booking.reference}] customer decision email not sent: ${customerResult.reason}`);
+  if (!adminResult.sent) console.error(`[booking ${booking.reference}] admin decision email not sent: ${adminResult.reason}`);
+  res.json({ data: booking, meta: { status_emails: emailStatus } });
+});
+
 export const updateBooking = asyncHandler(async (req, res) => {
   const fields = [];
   const params = [];
