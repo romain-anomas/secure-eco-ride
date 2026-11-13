@@ -7,6 +7,18 @@ import { sendBookingPush, sendDriverAssignmentPush } from '../services/pushServi
 
 const CUSTOMER_MESSAGE = 'Your booking has been received. Our team will contact you shortly.';
 
+function sendStatusEmailsInBackground(booking, previousStatus, action) {
+  Promise.all([
+    sendCustomerBookingStatusEmail(booking, previousStatus),
+    sendAdminBookingStatusEmail(booking, previousStatus),
+  ]).then(([customerResult, adminResult]) => {
+    if (!customerResult.sent) console.error(`[booking ${booking.reference}] customer ${action} email not sent: ${customerResult.reason}`);
+    if (!adminResult.sent) console.error(`[booking ${booking.reference}] admin ${action} email not sent: ${adminResult.reason}`);
+  }).catch((err) => {
+    console.error(`[booking ${booking.reference}] ${action} email dispatch failed:`, err.message);
+  });
+}
+
 export const createBooking = asyncHandler(async (req, res) => {
   // Honeypot: pretend success so bots learn nothing
   if (req.body.website) return res.status(201).json({ data: { reference: 'SER-RECEIVED', message: CUSTOMER_MESSAGE } });
@@ -59,15 +71,13 @@ export const testEmail = asyncHandler(async (_req, res) => {
 });
 
 export const getBooking = asyncHandler(async (req, res) => {
-  const booking = await bookings.getBookingById(req.params.id);
+  const booking = await bookings.getBookingForAdminAction(req.params.id);
   if (!booking) throw notFound('Booking not found');
   if (!booking.seen_by_admin) {
     await pool.query('UPDATE bookings SET seen_by_admin = 1 WHERE id = ?', [booking.id]);
     booking.seen_by_admin = 1;
   }
-  const history = await bookings.getStatusHistory(booking.id);
-  const assignment_history = await bookings.getAssignmentHistory(booking.id);
-  res.json({ data: { ...booking, history, assignment_history } });
+  res.json({ data: booking });
 });
 
 export const sendBookingUpdate = asyncHandler(async (req, res) => {
@@ -76,32 +86,14 @@ export const sendBookingUpdate = asyncHandler(async (req, res) => {
     sendDriverAssignmentPush(booking, notificationEventId)
       .catch((err) => console.error(`[booking ${booking.reference}] driver push dispatch failed code=${err.code || 'unknown_error'}`));
   }
-  const [customerResult, adminResult] = await Promise.all([
-    sendCustomerBookingStatusEmail(booking, previousStatus),
-    sendAdminBookingStatusEmail(booking, previousStatus),
-  ]);
-  const emailStatus = {
-    customer: customerResult.sent ? 'SENT' : customerResult.reason === 'Customer email not provided' ? 'NO_EMAIL' : 'FAILED',
-    admin: adminResult.sent ? 'SENT' : 'FAILED',
-  };
-  if (!customerResult.sent) console.error(`[booking ${booking.reference}] customer status email not sent: ${customerResult.reason}`);
-  if (!adminResult.sent) console.error(`[booking ${booking.reference}] admin status email not sent: ${adminResult.reason}`);
-  res.json({ data: booking, meta: { status_emails: emailStatus } });
+  sendStatusEmailsInBackground(booking, previousStatus, 'status update');
+  res.json({ data: booking, meta: { status_emails: { customer: 'QUEUED', admin: 'QUEUED' } } });
 });
 
 export const decideBooking = asyncHandler(async (req, res) => {
   const { booking, previousStatus } = await bookings.decideBooking(req.params.id, req.body.decision, req.user.id);
-  const [customerResult, adminResult] = await Promise.all([
-    sendCustomerBookingStatusEmail(booking, previousStatus),
-    sendAdminBookingStatusEmail(booking, previousStatus),
-  ]);
-  const emailStatus = {
-    customer: customerResult.sent ? 'SENT' : customerResult.reason === 'Customer email not provided' ? 'NO_EMAIL' : 'FAILED',
-    admin: adminResult.sent ? 'SENT' : 'FAILED',
-  };
-  if (!customerResult.sent) console.error(`[booking ${booking.reference}] customer decision email not sent: ${customerResult.reason}`);
-  if (!adminResult.sent) console.error(`[booking ${booking.reference}] admin decision email not sent: ${adminResult.reason}`);
-  res.json({ data: booking, meta: { status_emails: emailStatus } });
+  sendStatusEmailsInBackground(booking, previousStatus, 'decision');
+  res.json({ data: booking, meta: { status_emails: { customer: 'QUEUED', admin: 'QUEUED' } } });
 });
 
 export const updateBooking = asyncHandler(async (req, res) => {

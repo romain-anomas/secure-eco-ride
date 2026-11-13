@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Check, Eye, RefreshCw, Search, Send, X } from 'lucide-react';
 import { parseError, post } from '../../services/api.js';
@@ -127,31 +127,50 @@ function Row({ k, v }) {
 }
 
 function BookingDetail({ id, onClose, onChanged }) {
-  const { data: b, loading, error, reload } = useFetch(`/bookings/${id}`);
+  const { data: b, loading, error, setData } = useFetch(`/bookings/${id}`);
   const drivers = useFetch('/drivers', { initial: [] });
   const [driverId, setDriverId] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState('');
+  const assignmentRef = useRef(null);
+  const previousStatus = useRef(null);
 
   useEffect(() => {
     if (b) setDriverId(b.driver_id || '');
   }, [b?.id, b?.status, b?.driver_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (previousStatus.current === 'PENDING' && b?.status === 'CONFIRMED') {
+      assignmentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      assignmentRef.current?.focus({ preventScroll: true });
+    }
+    previousStatus.current = b?.status || null;
+  }, [b?.status]);
+
   async function run(name, fn, done) {
     setBusy(name); setErr(''); setMsg('');
-    try { const result = await fn(); setMsg(typeof done === 'function' ? done(result) : done); await reload(); onChanged?.(); } catch (e) { setErr(parseError(e).message); } finally { setBusy(''); }
+    try {
+      const result = await fn();
+      if (result.data) {
+        setData(result.data);
+        onChanged?.();
+      }
+      setMsg(typeof done === 'function' ? done(result) : done);
+    } catch (e) { setErr(parseError(e).message); }
+    finally { setBusy(''); }
   }
 
   const resultMessage = (response, action) => {
     const emailState = response.meta?.status_emails;
-    if (emailState?.customer === 'SENT' && emailState?.admin === 'SENT') return `${action} Booking. Email sent to the passenger and admin inbox.`;
-    if (emailState?.customer === 'NO_EMAIL') return `${action} Booking. Admin emailed, but no passenger email is saved.`;
-    if (emailState?.customer === 'FAILED' || emailState?.admin === 'FAILED') return `${action} Booking, but one or more emails failed. Check SMTP settings and server logs.`;
-    return `${action} Booking.`;
+    if (emailState?.customer === 'QUEUED' || emailState?.admin === 'QUEUED') return `${action}. Email notifications are processing in the background.`;
+    if (emailState?.customer === 'SENT' && emailState?.admin === 'SENT') return `${action}. Email sent to the passenger and admin inbox.`;
+    if (emailState?.customer === 'NO_EMAIL') return `${action}. Admin emailed, but no passenger email is saved.`;
+    if (emailState?.customer === 'FAILED' || emailState?.admin === 'FAILED') return `${action}, but one or more emails failed. Check SMTP settings and server logs.`;
+    return `${action}.`;
   };
-  const decide = (decision) => run(decision.toLowerCase(), () => post(`/bookings/${id}/decision`, { decision }), (response) => resultMessage(response, decision === 'ACCEPT' ? 'Accepted' : 'Rejected'));
-  const assignDriver = () => run('assign', () => post(`/bookings/${id}/send-update`, { driver_id: Number(driverId), status: 'ASSIGNED' }), (response) => resultMessage(response, 'Driver assigned to'));
+  const decide = (decision) => run(decision.toLowerCase(), () => post(`/bookings/${id}/decision`, { decision }), (response) => resultMessage(response, decision === 'ACCEPT' ? 'Booking accepted' : 'Booking rejected'));
+  const assignDriver = () => run('assign', () => post(`/bookings/${id}/send-update`, { driver_id: Number(driverId), status: 'ASSIGNED' }), (response) => resultMessage(response, 'Driver assigned'));
   return (
     <Modal title={b ? `Booking ${b.reference}` : 'Booking'} onClose={onClose} wide>
       {loading && !b ? <Spinner /> : error ? <ErrorBox>{parseError(error).message}</ErrorBox> : b && (
@@ -194,7 +213,7 @@ function BookingDetail({ id, onClose, onChanged }) {
             </div>
           </section>}
 
-          {b.status === 'CONFIRMED' && <section className="admin-card">
+          {b.status === 'CONFIRMED' && <section ref={assignmentRef} tabIndex={-1} className="admin-card scroll-mt-24 focus:outline-none">
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-leaf/15 text-moss"><Send className="h-5 w-5" aria-hidden="true" /></span>
               <div><h3 className="font-display text-base font-black uppercase">Assign an available driver</h3>

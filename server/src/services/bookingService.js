@@ -35,6 +35,23 @@ export async function getBookingById(id) {
   return withWhatsAppSummary(rows[0]);
 }
 
+export async function getBookingForAdminAction(id) {
+  const [rows] = await pool.query(
+    `SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
+      d.name AS driver_name, d.phone AS driver_phone,
+      v.name AS vehicle_name, v.plate_number AS vehicle_plate
+     FROM bookings b
+     JOIN customers c ON c.id = b.customer_id
+     LEFT JOIN drivers d ON d.id = b.driver_id
+     LEFT JOIN vehicles v ON v.id = b.vehicle_id
+     WHERE b.id = ?`,
+    [id],
+  );
+  if (!rows[0]) return rows[0];
+  const { request_key: _requestKey, ...booking } = rows[0];
+  return booking;
+}
+
 export async function listBookings({ status, date_from, date_to, q, page = 1, limit = 25 }) {
   const where = [];
   const params = [];
@@ -184,7 +201,7 @@ export async function decideBooking(id, decision, userId) {
     await refreshDriverStatus(conn, current.driver_id);
     return current.status;
   });
-  return { booking: await getBookingById(id), previousStatus };
+  return { booking: await getBookingForAdminAction(id), previousStatus };
 }
 
 export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
@@ -220,7 +237,7 @@ export async function assignDriver(id, { driver_id, vehicle_id }, userId) {
     await refreshDriverStatus(conn, driver_id);
     if (booking.driver_id && booking.driver_id !== driver_id) await refreshDriverStatus(conn, booking.driver_id);
   });
-  return getBookingById(id);
+  return getBookingForAdminAction(id);
 }
 
 /** Atomically saves the selected driver and status after the admin explicitly presses Send. */
@@ -265,7 +282,7 @@ export async function dispatchBookingUpdate(id, { driver_id, status, note }, use
     if (booking.driver_id && booking.driver_id !== driver_id) await refreshDriverStatus(conn, booking.driver_id);
     return { previousStatus: booking.status, notificationEventId };
   });
-  return { booking: await getBookingById(id), ...dispatch };
+  return { booking: await getBookingForAdminAction(id), ...dispatch };
 }
 
 export async function getStatusHistory(id) {
