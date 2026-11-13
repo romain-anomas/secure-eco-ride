@@ -123,7 +123,7 @@ export default function DriverDashboard() {
     try {
       const result = await patch('/driver/availability', { available: availability !== 'AVAILABLE' });
       setAvailability(result.data.status);
-      setNotice(result.data.status === 'BUSY' ? 'You have an active ride and remain marked busy.' : `Availability updated: ${result.data.status.toLowerCase()}.`);
+      setNotice(result.data.status === 'BUSY' ? 'You have an active ride and remain marked busy.' : result.data.status === 'AVAILABLE' ? 'You are active and available for assignments.' : 'You are now inactive and unavailable for assignments.');
     } catch (err) { setError(parseError(err).message); }
     finally { setBusy(false); }
   }
@@ -149,8 +149,8 @@ export default function DriverDashboard() {
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div><p className="text-sm font-bold uppercase tracking-widest text-leaf">Driver portal</p><h1 className="mt-1 font-display text-3xl font-black">Your rides</h1><p className="mt-2 text-sm text-night/60">Manage assigned rides, navigate to each stop, and confirm when a ride is complete.</p></div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide ${availability === 'AVAILABLE' ? 'bg-green-100 text-green-800' : availability === 'BUSY' ? 'bg-amber-100 text-amber-800' : 'bg-night/10 text-night/65'}`}>{availability}</span>
-        <button type="button" className="btn btn-primary btn-sm" disabled={busy || availability === 'BUSY'} onClick={toggleAvailability}>{busy ? 'Updating…' : availability === 'AVAILABLE' ? 'Set unavailable' : 'Set available'}</button>
+        <span className={`rounded-full px-3 py-2 text-xs font-black uppercase tracking-wide ${availability === 'AVAILABLE' ? 'bg-green-100 text-green-800' : availability === 'BUSY' ? 'bg-amber-100 text-amber-800' : 'bg-night/10 text-night/65'}`}>{availability === 'AVAILABLE' ? 'Active' : availability === 'OFFLINE' ? 'Inactive' : 'Busy'}</span>
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy || availability === 'BUSY'} onClick={toggleAvailability}>{busy ? 'Updating…' : availability === 'AVAILABLE' ? 'Go inactive' : 'Go active'}</button>
         <button type="button" title="Refresh rides" className="grid h-10 w-10 place-items-center rounded-full border border-night/15 bg-white" onClick={() => { setLoading(true); load(); }}><RefreshCw className="h-4 w-4" aria-hidden="true" /></button>
       </div>
     </div>

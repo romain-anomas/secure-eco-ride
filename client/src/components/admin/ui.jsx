@@ -7,7 +7,7 @@ const STATUS_STYLES = {
   DRIVER_ON_WAY: 'bg-violet-100 text-violet-900', PICKED_UP: 'bg-teal-100 text-teal-900', COMPLETED: 'bg-green-100 text-green-900',
   CANCELLED: 'bg-red-100 text-red-800',
   // generic
-  AVAILABLE: 'bg-green-100 text-green-900', BUSY: 'bg-amber-100 text-amber-900', OFFLINE: 'bg-night/10 text-night/70', MAINTENANCE: 'bg-red-100 text-red-800',
+  AVAILABLE: 'bg-green-100 text-green-900', BUSY: 'bg-amber-100 text-amber-900', OFFLINE: 'bg-night/10 text-night/70', ACTIVE: 'bg-green-100 text-green-900', INACTIVE: 'bg-red-100 text-red-800', MAINTENANCE: 'bg-red-100 text-red-800',
   APPROVED: 'bg-green-100 text-green-900', HIDDEN: 'bg-night/10 text-night/70',
   SENT: 'bg-green-100 text-green-900', FAILED: 'bg-red-100 text-red-800', SKIPPED: 'bg-night/10 text-night/70',
   PARTIAL: 'bg-amber-100 text-amber-900', NOT_SENT: 'bg-night/10 text-night/70', NONE: 'bg-night/10 text-night/50',

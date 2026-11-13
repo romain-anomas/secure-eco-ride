@@ -30,9 +30,9 @@ export const driverSchema = z.object({
   name: requiredText(2, 120, 'Driver name'),
   phone: phoneField('Driver phone'),
   license_number: optionalText(60),
-  status: z.enum(['AVAILABLE', 'BUSY', 'OFFLINE']).default('AVAILABLE'),
+  status: z.enum(['AVAILABLE', 'BUSY', 'OFFLINE']).default('OFFLINE'),
   vehicle_id: optionalInt(1),
-  is_active: boolish,
+  is_active: boolish.default(true),
 });
 
 export const pricingSchema = z.object({

@@ -17,9 +17,7 @@ const DRIVER_FIELDS = [
   { name: 'name', label: 'Full name', required: true },
   { name: 'phone', label: 'Phone', type: 'phone', required: true, hint: 'Choose the calling code, then enter the number.' },
   { name: 'license_number', label: 'License number', hint: 'Only if you are legally required and permitted to keep it.' },
-  { name: 'status', label: 'Status', type: 'select', options: opt(['AVAILABLE', 'BUSY', 'OFFLINE']), allowEmpty: false, default: 'AVAILABLE' },
   { name: 'vehicle_id', label: 'Assigned vehicle', type: 'select', numeric: true, optionsFrom: { endpoint: '/fleet', params: { all: 1 }, label: (v) => `${v.name}${v.plate_number ? ` · ${v.plate_number}` : ''}` } },
-  { name: 'is_active', label: 'Active driver', type: 'checkbox', hint: 'Inactive drivers cannot be assigned to bookings.' },
 ];
 export const Drivers = () => {
   const { isAdmin } = useAuth();
@@ -28,9 +26,8 @@ export const Drivers = () => {
     columns={[
       { header: 'Name', render: (r) => <span className="font-semibold">{r.name}</span> },
       { header: 'Phone', render: (r) => prettyPhone(r.phone) },
-      { header: 'Status', render: (r) => <Badge value={r.status} /> },
+      { header: 'Driver status', render: (r) => <Badge value={r.status === 'AVAILABLE' ? 'ACTIVE' : r.status === 'OFFLINE' ? 'INACTIVE' : 'BUSY'} /> },
       { header: 'Vehicle', render: (r) => r.vehicle_name ? `${r.vehicle_name}${r.vehicle_plate ? ` (${r.vehicle_plate})` : ''}` : '—' },
-      { header: 'Active', render: (r) => yesNo(r.is_active) },
       { header: 'Driver login', render: (r) => r.account_email || 'Not created' },
     ]} renderRowAction={isAdmin ? (row, actions) => <DriverAccountAction key={row.id} row={row} {...actions} /> : undefined} />;
 };
