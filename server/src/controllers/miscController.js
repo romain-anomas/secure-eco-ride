@@ -25,6 +25,16 @@ export const uploadImage = (req, res) => {
   res.status(201).json({ data: { url: uploadsPublicPath(req.file.filename) } });
 };
 
+export const uploadGalleryMedia = (req, res) => {
+  if (!req.file) throw badRequest('Choose an image or video to upload.');
+  res.status(201).json({
+    data: {
+      url: uploadsPublicPath(req.file.filename),
+      media_type: req.file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+    },
+  });
+};
+
 // ------------------------------------------------------------- customers
 export const listCustomers = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').toString().trim();

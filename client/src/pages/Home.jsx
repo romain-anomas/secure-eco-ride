@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, CalendarDays, CarFront, Check, Clock3, ClipboardList, KeyRound, MessageCircle, Search, ShieldCheck, Users, Zap } from 'lucide-react';
+import { ArrowRight, CalendarDays, CarFront, Check, Clock3, ClipboardList, Images, KeyRound, MessageCircle, Search, ShieldCheck, Users, Video, Zap } from 'lucide-react';
 import useSeo from '../hooks/useSeo.js';
 import useFetch from '../hooks/useFetch.js';
 import useServices from '../hooks/useServices.js';
@@ -97,6 +97,33 @@ function FleetPreview() {
   </div></section>;
 }
 
+function GalleryPreview() {
+  const { data, loading, error } = useFetch('/gallery', { initial: [] });
+  const initialImage = { id: 'initial-gallery-image', title: 'Secure Eco Ride', media_type: 'IMAGE', media_url: '/gallery/secure-eco-ride.jpg' };
+  const entries = data?.length
+    ? data.slice(0, 6)
+    : loading || error
+      ? [initialImage]
+      : [];
+
+  if (!loading && !entries.length) return null;
+  return <section className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8" aria-labelledby="gallery-title">
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-9 text-center">
+        <p className="text-xs font-extrabold uppercase tracking-[.16em] text-emerald-800">A look at our journeys</p>
+        <h2 id="gallery-title" className="mt-2 text-2xl font-extrabold tracking-tight text-night sm:text-3xl">Gallery</h2>
+        <p className="mt-2 text-sm text-night/55">A few moments from Secure Eco Ride.</p>
+      </div>
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{entries.map((item) => <li key={item.id} className="overflow-hidden rounded-2xl border border-night/10 bg-white shadow-sm">
+          {item.media_type === 'VIDEO'
+            ? <div className="aspect-[4/3] bg-night"><video className="h-full w-full object-cover" src={item.media_url} controls preload="metadata" aria-label={item.title} /></div>
+            : <img className="aspect-[4/3] w-full object-cover" src={item.media_url} alt={item.caption || item.title} loading="lazy" />}
+          <div className="p-4"><h3 className="flex items-center gap-2 text-base font-bold text-night">{item.media_type === 'VIDEO' ? <Video className="h-4 w-4 text-emerald-700" aria-hidden="true" /> : <Images className="h-4 w-4 text-emerald-700" aria-hidden="true" />}{item.title}</h3>{item.caption && <p className="mt-1 text-sm leading-relaxed text-night/60">{item.caption}</p>}</div>
+        </li>)}</ul>
+    </div>
+  </section>;
+}
+
 function HowToBook() {
   const tones = ['text-emerald-700 bg-emerald-50 border-emerald-100', 'text-sky-700 bg-sky-50 border-sky-100', 'text-violet-700 bg-violet-50 border-violet-100', 'text-amber-700 bg-amber-50 border-amber-100', 'text-teal-700 bg-teal-50 border-teal-100'];
   return <section className="px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8" aria-labelledby="steps-title"><div className="mx-auto max-w-6xl rounded-2xl border border-night/10 bg-white p-4 shadow-sm sm:p-8"><div className="text-center"><p className="text-xs font-extrabold uppercase tracking-[.16em] text-emerald-800">Simple from start to finish</p><h2 id="steps-title" className="mt-2 text-2xl font-extrabold text-night sm:text-3xl">How to book your ride</h2></div><ol className="mt-8 grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-6 lg:grid-cols-5">{STEPS.map(([Icon, title, detail], i) => <li key={title} className="relative flex flex-col items-center text-center"><span className={`grid h-14 w-14 place-items-center rounded-full border ${tones[i]}`}><Icon size={24} /></span><span className="mt-3 text-sm font-extrabold text-night">{i + 1}. {title}</span><span className="mt-1 max-w-48 text-xs leading-relaxed text-night/55">{detail}</span></li>)}</ol></div></section>;
@@ -109,5 +136,5 @@ function WhatsAppBand() {
 
 export default function Home() {
   useSeo({ title: 'Secure Eco Ride | Safe & Reliable Taxi Services', description: 'Book safe, reliable transport in Rwanda with Secure Eco Ride. Airport transfers, business travel and private rides with professional drivers.' });
-  return <div className="home-page"><Hero /><BookingCallout /><TrustRow /><ServicePreview /><FleetPreview /><HowToBook /><div className="home-reviews"><Testimonials /></div><WhatsAppBand /></div>;
+  return <div className="home-page"><Hero /><BookingCallout /><TrustRow /><ServicePreview /><FleetPreview /><GalleryPreview /><HowToBook /><div className="home-reviews"><Testimonials /></div><WhatsAppBand /></div>;
 }

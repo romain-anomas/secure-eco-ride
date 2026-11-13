@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, Bell, Car, ClipboardList, LayoutDashboard, LogOut, Menu, MessageCircle, MessageSquare, Settings, Tag, Truck, UserCheck, Users, X, Star, KeyRound } from 'lucide-react';
+import { BarChart3, Bell, Car, ClipboardList, LayoutDashboard, LogOut, Menu, MessageCircle, MessageSquare, Settings, Tag, Truck, UserCheck, Users, X, Star, KeyRound, Images } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { get } from '../services/api.js';
 import Logo from '../components/Logo.jsx';
@@ -20,6 +20,7 @@ const NAV = [
   { to: '/admin/services', label: 'Services', icon: Truck, admin: true },
   { to: '/admin/pricing', label: 'Pricing', icon: Tag, admin: true },
   { to: '/admin/testimonials', label: 'Testimonials', icon: Star, admin: true },
+  { to: '/admin/gallery', label: 'Gallery', icon: Images, admin: true },
   { to: '/admin/messages', label: 'Messages', icon: MessageSquare },
   { to: '/admin/whatsapp', label: 'WhatsApp logs', icon: MessageCircle },
   { to: '/admin/reports', label: 'Reports', icon: BarChart3 },
@@ -29,7 +30,7 @@ const NAV = [
 const PAGE_TITLES = Object.fromEntries(NAV.map(({ to, label }) => [to, label]));
 const NAV_ICON_COLORS = {
   Dashboard: '#1f8e5e', Bookings: '#0284c7', Customers: '#7c3aed', Drivers: '#0f766e', Vehicles: '#0891b2',
-  Services: '#d97706', Pricing: '#db2777', Testimonials: '#e11d48', Messages: '#2563eb', 'WhatsApp logs': '#16a34a',
+  Services: '#d97706', Pricing: '#db2777', Testimonials: '#e11d48', Gallery: '#0f766e', Messages: '#2563eb', 'WhatsApp logs': '#16a34a',
   Reports: '#4f46e5', 'Team accounts': '#9333ea', Settings: '#475569',
 };
 

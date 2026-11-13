@@ -54,6 +54,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```bash
 cd server
 npm run db:init      # creates the database and all tables from database/schema.sql
+npm run db:migrate:gallery # adds the gallery table and initial published image to an existing database
 npm run seed          # creates the demo admin account + the 4 business-card services
 # npm run seed:demo   # optional: also adds two clearly-labelled SAMPLE vehicles
 ```
@@ -369,7 +370,7 @@ Admins can create a login for an active driver from **Drivers**. Give the driver
 ### Database rollout
 
 1. Take a verified backup of the production database and confirm it can be restored.
-2. From a MySQL client connected to the Render production database, apply `database/migrations/002_booking_coordinates.sql`, `database/migrations/003_driver_assignment_history.sql`, and `database/migrations/004_driver_accounts.sql` in order. The last migration adds the restricted driver role and a nullable link from driver profiles to login accounts.
+2. From a MySQL client connected to the Render production database, apply `database/migrations/002_booking_coordinates.sql`, `database/migrations/003_driver_assignment_history.sql`, and `database/migrations/004_driver_accounts.sql` in order. The last migration adds the restricted driver role and a nullable link from driver profiles to login accounts. Then run `cd server && npm run db:migrate:gallery` against the same production database to create the gallery and publish its initial image.
 3. Deploy the backend and frontend. Existing rows without coordinates continue to appear with text addresses and a no-coordinates note.
 4. To roll back application code, redeploy the prior versions. Keep the additive columns and audit table during rollback; the prior code ignores them. Do not drop data-bearing schema objects as part of routine rollback.
 
@@ -388,6 +389,8 @@ Set these in the Render API service environment (never use `VITE_` for secrets):
 Use Render's production start command `npm start` from the `server` directory (it runs `node src/server.js`, not the watch server). On Vercel set `VITE_API_URL=https://secure-eco-ride.onrender.com/api` and `SITE_URL=https://secure-eco-ride.vercel.app`; redeploy after changing build variables. Keep the Vercel site and Render API on HTTPS. Socket.IO is not added in this stage.
 
 Vehicle and settings images are served from the API host. The client resolves saved `/uploads/...` paths against `VITE_API_URL`, so make sure that variable points to the API service and redeploy the Vercel client. The API writes uploads to `server/uploads` by default; on Render, attach a persistent disk and set `UPLOAD_DIR` to its mount path (for example `/var/data/uploads`) so uploaded images survive service restarts and deploys.
+
+Admins can add image and video posts in **Gallery**. Gallery uploads are limited to 50 MB and are stored alongside other API uploads, so production deployments should use the persistent upload disk described above.
 
 ### Safe SMTP test
 

@@ -55,6 +55,17 @@ export const testimonialSchema = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'HIDDEN']).default('PENDING'),
 });
 
+export const galleryItemSchema = z.object({
+  title: requiredText(2, 120, 'Title'),
+  caption: optionalText(1000),
+  media_type: z.enum(['IMAGE', 'VIDEO']),
+  media_url: z.string().trim().min(1).max(500).refine(
+    (value) => /^\/(?:uploads|gallery)\/[A-Za-z0-9._/-]+$/.test(value) && !value.split('/').includes('..'),
+    'Choose a valid uploaded gallery file.',
+  ),
+  is_published: boolish,
+});
+
 /** PATCH variant: every field optional; defaults must not silently overwrite existing values. */
 export const partialOf = (schema) => {
   const base = schema._def.schema ?? schema; // unwrap ZodEffects (services use a transform)

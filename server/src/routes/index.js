@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { authenticate, optionalAuth, adminOnly, staffOrAdmin, driverOnly } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { bookingLimiter, contactLimiter, loginLimiter } from '../middleware/rateLimit.js';
-import { imageUpload } from '../middleware/upload.js';
+import { galleryMediaUpload, imageUpload } from '../middleware/upload.js';
 import { idParam } from '../validators/common.js';
 import * as S from '../validators/schemas.js';
-import { serviceSchema, vehicleSchema, driverSchema, pricingSchema, testimonialSchema, partialOf } from '../validators/resources.js';
-import { Services, Vehicles, Drivers, Pricing, Testimonials } from '../models/resources.js';
+import { serviceSchema, vehicleSchema, driverSchema, pricingSchema, testimonialSchema, galleryItemSchema, partialOf } from '../validators/resources.js';
+import { Services, Vehicles, Drivers, Pricing, Testimonials, GalleryItems } from '../models/resources.js';
 import { resourceHandlers } from '../controllers/resourceController.js';
 import * as auth from '../controllers/authController.js';
 import * as bookings from '../controllers/bookingController.js';
@@ -84,6 +84,14 @@ router.post('/testimonials', authenticate, adminOnly, validate(testimonialSchema
 router.patch('/testimonials/:id', authenticate, adminOnly, id, validate(partialOf(testimonialSchema)), testimonials.update);
 router.delete('/testimonials/:id', authenticate, adminOnly, id, testimonials.remove);
 
+// --------------------------------------------------------------------- gallery
+const gallery = resourceHandlers(GalleryItems, { publicWhere: 'WHERE t.is_published = 1' });
+router.get('/gallery', gallery.list);
+router.get('/gallery/admin', authenticate, adminOnly, gallery.adminList);
+router.post('/gallery', authenticate, adminOnly, validate(galleryItemSchema), gallery.create);
+router.patch('/gallery/:id', authenticate, adminOnly, id, validate(partialOf(galleryItemSchema)), gallery.update);
+router.delete('/gallery/:id', authenticate, adminOnly, id, gallery.remove);
+
 // ------------------------------------------------------------- customers
 router.get('/customers', authenticate, staffOrAdmin, misc.listCustomers);
 router.patch('/customers/:id', authenticate, adminOnly, id, validate(S.customerUpdateSchema), misc.updateCustomer);
@@ -111,6 +119,7 @@ router.put('/settings', authenticate, adminOnly, validate(S.settingsSchema), mis
 router.get('/dashboard/summary', authenticate, staffOrAdmin, misc.dashboardSummary);
 router.get('/reports', authenticate, staffOrAdmin, misc.reports);
 router.post('/uploads', authenticate, adminOnly, imageUpload, misc.uploadImage);
+router.post('/uploads/gallery', authenticate, adminOnly, galleryMediaUpload, misc.uploadGalleryMedia);
 
 // ----------------------------------------------------------------- users
 router.get('/users', authenticate, adminOnly, misc.listUsers);

@@ -1,14 +1,21 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { siFacebook, siInstagram, siTiktok, siX, siYoutube } from 'simple-icons';
 import Logo from './Logo.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { prettyLocal } from '../utils/phone.js';
 
-const SOCIAL_LABELS = { facebook: 'Facebook', instagram: 'Instagram', twitter: 'X / Twitter', tiktok: 'TikTok', youtube: 'YouTube' };
+const SOCIAL_BRANDS = {
+  facebook: { label: 'Facebook', icon: siFacebook },
+  instagram: { label: 'Instagram', icon: siInstagram },
+  twitter: { label: 'X', icon: siX },
+  tiktok: { label: 'TikTok', icon: siTiktok },
+  youtube: { label: 'YouTube', icon: siYoutube },
+};
 
 export default function Footer() {
   const { settings, phones, whatsappNumbers, tel, wa } = useSettings();
-  const socials = Object.entries(settings.social_links || {}).filter(([, v]) => v);
+  const socials = Object.entries(SOCIAL_BRANDS).filter(([key]) => settings.social_links?.[key]);
   return (
     <footer className="border-t border-night/10 bg-white text-night">
       <div className="container-x grid gap-x-8 gap-y-10 py-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-12 lg:py-14">
@@ -17,8 +24,8 @@ export default function Footer() {
           <p className="mt-5 max-w-xs text-sm leading-relaxed text-night/65">{settings.company_description}</p>
           {socials.length > 0 && (
             <ul className="mt-5 flex flex-wrap gap-2">
-              {socials.map(([k, url]) => (
-              <li key={k}><a href={url} target="_blank" rel="noopener noreferrer" className="rounded-full border border-night/15 px-3 py-1.5 text-xs font-semibold text-night/75 transition hover:border-emerald-600 hover:text-emerald-800">{SOCIAL_LABELS[k] || k}</a></li>
+              {socials.map(([key, { label, icon }]) => (
+              <li key={key}><a href={settings.social_links[key]} target="_blank" rel="noopener noreferrer" aria-label={`Visit Secure Eco Ride on ${label}`} title={label} className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-night/10 bg-white px-3 py-2 text-xs font-bold text-night/75 shadow-sm transition hover:-translate-y-0.5 hover:border-night/20 hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2" style={{ '--social-color': `#${icon.hex}` }}><svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0 transition-transform group-hover:scale-110" fill="var(--social-color)"><path d={icon.path} transform="translate(1 1) scale(.92)" /></svg><span>{label}</span></a></li>
               ))}
             </ul>
           )}

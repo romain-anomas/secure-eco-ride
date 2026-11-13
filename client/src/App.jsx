@@ -34,6 +34,7 @@ const ServicesAdmin = pick('ServicesAdmin');
 const PricingAdmin = pick('PricingAdmin');
 const TestimonialsAdmin = pick('TestimonialsAdmin');
 const UsersAdmin = pick('UsersAdmin');
+const GalleryAdmin = lazy(() => import('./pages/admin/Gallery.jsx'));
 
 function AdminOnly({ children }) {
   const { isAdmin } = useAuth();
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="services" element={<AdminOnly><ServicesAdmin /></AdminOnly>} />
         <Route path="pricing" element={<AdminOnly><PricingAdmin /></AdminOnly>} />
         <Route path="testimonials" element={<AdminOnly><TestimonialsAdmin /></AdminOnly>} />
+        <Route path="gallery" element={<AdminOnly><GalleryAdmin /></AdminOnly>} />
         <Route path="messages" element={<Messages />} />
         <Route path="whatsapp" element={<WhatsAppLogs />} />
         <Route path="reports" element={<Reports />} />

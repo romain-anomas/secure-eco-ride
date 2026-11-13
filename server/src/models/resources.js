@@ -32,3 +32,9 @@ export const Testimonials = createCrud({
   fields: ['customer_name', 'customer_photo_url', 'text', 'rating', 'status'],
   orderBy: 't.created_at DESC',
 });
+
+export const GalleryItems = createCrud({
+  table: 'gallery_items',
+  fields: ['title', 'caption', 'media_type', 'media_url', 'is_published'],
+  orderBy: 't.created_at DESC, t.id DESC',
+});

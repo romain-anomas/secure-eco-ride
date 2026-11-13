@@ -17,12 +17,19 @@ export function resolveAssetUrl(value) {
   } catch { return value; }
 }
 
-const ASSET_KEYS = new Set(['image_url', 'hero_image_url', 'logo_url', 'customer_photo_url']);
+const ASSET_KEYS = new Set(['image_url', 'hero_image_url', 'logo_url', 'customer_photo_url', 'media_url']);
+export function resolveGalleryAssetUrl(value) {
+  if (typeof value !== 'string' || !value) return value;
+  if (value.startsWith('/gallery/')) return new URL(value, window.location.origin).toString();
+  return resolveAssetUrl(value);
+}
+
 function resolveAssets(value) {
   if (Array.isArray(value)) { value.forEach(resolveAssets); return; }
   if (!value || typeof value !== 'object') return;
   Object.entries(value).forEach(([key, child]) => {
-    if (ASSET_KEYS.has(key) && typeof child === 'string') value[key] = resolveAssetUrl(child);
+    if (key === 'media_url' && typeof child === 'string') value[key] = resolveGalleryAssetUrl(child);
+    else if (ASSET_KEYS.has(key) && typeof child === 'string') value[key] = resolveAssetUrl(child);
     else resolveAssets(child);
   });
 }

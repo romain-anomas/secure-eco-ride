@@ -9,6 +9,12 @@ fs.mkdirSync(config.uploadDir, { recursive: true });
 
 // SVG is deliberately excluded (can carry scripts).
 const EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/avif': '.avif' };
+const GALLERY_EXT = {
+  ...EXT,
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+};
 
 export const imageUpload = multer({
   storage: multer.diskStorage({
@@ -18,5 +24,14 @@ export const imageUpload = multer({
   limits: { fileSize: 4 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => (EXT[file.mimetype] ? cb(null, true) : cb(badRequest('Only JPG, PNG, WebP or AVIF images are allowed.'))),
 }).single('image');
+
+export const galleryMediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, config.uploadDir),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${GALLERY_EXT[file.mimetype]}`),
+  }),
+  limits: { fileSize: 50 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => (GALLERY_EXT[file.mimetype] ? cb(null, true) : cb(badRequest('Choose a JPG, PNG, WebP, AVIF, MP4, WebM or MOV file.'))),
+}).single('media');
 
 export const uploadsPublicPath = (filename) => `/uploads/${path.basename(filename)}`;

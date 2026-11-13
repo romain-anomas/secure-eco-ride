@@ -13,7 +13,9 @@ export function errorHandler(err, req, res, _next) {
     return res.status(400).json({ error: { message: details[0]?.message || 'Please check the form and try again.', details } });
   }
   if (err instanceof multer.MulterError) {
-    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Image is too large (max 4 MB).' : err.message;
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? (err.field === 'media' ? 'Gallery media is too large (max 50 MB).' : 'Image is too large (max 4 MB).')
+      : err.message;
     return res.status(400).json({ error: { message } });
   }
   if (err?.code === 'ER_DUP_ENTRY') {
