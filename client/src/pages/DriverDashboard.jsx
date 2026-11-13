@@ -6,6 +6,7 @@ import BookingLocationMap from '../components/admin/BookingLocationMap.jsx';
 import { useSearchParams } from 'react-router-dom';
 
 const CLOSED_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
+const ACTIVE_RIDE_STATUSES = new Set(['ASSIGNED', 'DRIVER_ON_WAY', 'PICKED_UP']);
 
 function dateLabel(date, time) {
   if (!date) return 'Schedule not set';
@@ -24,7 +25,7 @@ function mapDirections(ride, point) {
 }
 
 function RideCard({ ride, selectedBookingId, confirming, completing, onConfirm, onCancel, onComplete }) {
-  const active = !CLOSED_STATUSES.has(ride.status);
+  const active = ACTIVE_RIDE_STATUSES.has(ride.status);
   return (
     <article id={`ride-${ride.id}`} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${String(ride.id) === selectedBookingId ? 'border-leaf ring-2 ring-leaf/35' : 'border-night/10'}`}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-night/5 bg-white px-4 py-4 sm:px-6">
@@ -81,6 +82,7 @@ function RideCard({ ride, selectedBookingId, confirming, completing, onConfirm, 
             </div>
           </div>}
         </section>}
+        {!active && !CLOSED_STATUSES.has(ride.status) && <p className="text-sm text-night/60 sm:col-span-2">Ride completion will be available once this ride is active.</p>}
       </div>
     </article>
   );
@@ -143,7 +145,8 @@ export default function DriverDashboard() {
 
   if (loading) return <Spinner label="Loading your assigned rides…" />;
 
-  const activeRides = bookings.filter((ride) => !CLOSED_STATUSES.has(ride.status));
+  const activeRides = bookings.filter((ride) => ACTIVE_RIDE_STATUSES.has(ride.status));
+  const upcomingRides = bookings.filter((ride) => !ACTIVE_RIDE_STATUSES.has(ride.status) && !CLOSED_STATUSES.has(ride.status));
   const pastRides = bookings.filter((ride) => CLOSED_STATUSES.has(ride.status));
   return <div>
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -163,6 +166,11 @@ export default function DriverDashboard() {
       {!activeRides.length ? <div className="rounded-2xl border border-night/10 bg-white p-8 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-leaf/20"><CalendarDays className="h-5 w-5" aria-hidden="true" /></div><h3 className="mt-3 font-bold">No active rides</h3><p className="mt-1 text-sm text-night/55">New jobs assigned by admin will appear here.</p></div> :
         <div className="grid gap-4">{activeRides.map((ride) => <RideCard key={ride.id} ride={ride} selectedBookingId={selectedBookingId} confirming={confirmingId === ride.id} completing={completingId === ride.id} onConfirm={() => setConfirmingId(ride.id)} onCancel={() => setConfirmingId(null)} onComplete={() => completeRide(ride)} />)}</div>}
     </section>
+
+    {upcomingRides.length > 0 && <section className="mt-7">
+      <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="font-display text-xl font-black">Upcoming rides</h2><p className="mt-1 text-sm text-night/55">These rides are not active yet; completion is unavailable.</p></div><span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-night/65">{upcomingRides.length}</span></div>
+      <div className="grid gap-4">{upcomingRides.map((ride) => <RideCard key={ride.id} ride={ride} selectedBookingId={selectedBookingId} />)}</div>
+    </section>}
 
     <details className="mt-8 rounded-2xl border border-night/10 bg-white p-4 sm:p-5">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3"><span><span className="block font-display text-xl font-black">Ride history</span><span className="mt-1 block text-sm text-night/55">Completed and cancelled rides.</span></span><span className="rounded-full bg-mist px-3 py-1 text-sm font-bold text-night/65">{pastRides.length}</span></summary>

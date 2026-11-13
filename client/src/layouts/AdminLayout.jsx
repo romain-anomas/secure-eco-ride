@@ -28,12 +28,6 @@ const NAV = [
   { to: '/admin/settings', label: 'Settings', icon: Settings, admin: true },
 ];
 const PAGE_TITLES = Object.fromEntries(NAV.map(({ to, label }) => [to, label]));
-const NAV_ICON_COLORS = {
-  Dashboard: '#1f8e5e', Bookings: '#0284c7', Customers: '#7c3aed', Drivers: '#0f766e', Vehicles: '#0891b2',
-  Services: '#d97706', Pricing: '#db2777', Testimonials: '#e11d48', Gallery: '#0f766e', Messages: '#2563eb', 'WhatsApp logs': '#16a34a',
-  Reports: '#4f46e5', 'Team accounts': '#9333ea', Settings: '#475569',
-};
-
 export default function AdminLayout() {
   const { user, checking, logout, isAdmin } = useAuth();
   const { pathname } = useLocation();
@@ -213,8 +207,8 @@ export default function AdminLayout() {
       <ul className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
         {links.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
-            <NavLink to={to} end={end} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isActive ? 'bg-emerald-50 text-emerald-900' : 'text-night/70 hover:bg-mist hover:text-night'}`}>
-              <Icon className="h-[18px] w-[18px]" style={{ color: NAV_ICON_COLORS[label] || '#1f8e5e' }} aria-hidden="true" /> {label}
+            <NavLink to={to} end={end} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${isActive ? 'bg-amber-100 text-night shadow-sm' : 'text-night/70 hover:bg-mist hover:text-night'}`}>
+              <Icon className={`h-[18px] w-[18px] ${pathname === to || (to !== '/admin' && pathname.startsWith(`${to}/`)) ? 'text-moss' : 'text-night/45'}`} aria-hidden="true" /> {label}
               {to === '/admin/bookings' && unseen > 0 && <span className="ml-auto rounded-full bg-lime px-2 py-0.5 text-xs font-black text-night">{unseen}</span>}
             </NavLink>
           </li>
@@ -260,7 +254,7 @@ export default function AdminLayout() {
         </div>
       )}
       {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} soundActive={soundActive} lastNotification={lastNotification} onStopSound={() => { stopBookingSound(); setSoundActive(false); }} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
-      <main className="p-3 sm:p-4 lg:p-8"><Outlet /></main>
+      <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-5 lg:p-8"><Outlet /></main>
     </div>
   );
 }
