@@ -130,8 +130,9 @@ export const deleteUser = asyncHandler(async (req, res) => {
 // ------------------------------------------------------ dashboard / reports
 export const dashboardSummary = asyncHandler(async (_req, res) => {
   const today = todayInTz(config.timezone);
+  const activityFrom = new Date(new Date(`${today}T00:00:00Z`).getTime() - 29 * 86400000).toISOString().slice(0, 10);
   const one = async (sql, p = []) => (await pool.query(sql, p))[0][0];
-  const [today_row, status_rows, customers, drivers, vehicles, unseen, wa_failed, messages_new] = await Promise.all([
+  const [today_row, status_rows, customers, drivers, vehicles, unseen, wa_failed, messages_new, activity] = await Promise.all([
     one('SELECT COUNT(*) AS n FROM bookings WHERE pickup_date = ?', [today]),
     pool.query('SELECT status, COUNT(*) AS n FROM bookings GROUP BY status').then(([r]) => r),
     one('SELECT COUNT(*) AS n FROM customers'),
@@ -140,6 +141,10 @@ export const dashboardSummary = asyncHandler(async (_req, res) => {
     one('SELECT COUNT(*) AS n FROM bookings WHERE seen_by_admin = 0'),
     one(`SELECT COUNT(*) AS n FROM whatsapp_logs WHERE status = 'FAILED' AND created_at >= NOW() - INTERVAL 7 DAY`),
     one(`SELECT COUNT(*) AS n FROM contact_messages WHERE status = 'NEW'`),
+    pool.query(
+      'SELECT pickup_date AS day, COUNT(*) AS bookings FROM bookings WHERE pickup_date BETWEEN ? AND ? GROUP BY pickup_date ORDER BY pickup_date',
+      [activityFrom, today],
+    ).then(([rows]) => rows),
   ]);
   const byStatus = Object.fromEntries(status_rows.map((r) => [r.status, r.n]));
   res.json({ data: {
@@ -155,6 +160,7 @@ export const dashboardSummary = asyncHandler(async (_req, res) => {
     unseen_bookings: unseen.n,
     whatsapp_failed_7d: wa_failed.n,
     new_messages: messages_new.n,
+    activity: { from: activityFrom, to: today, per_day: activity },
   } });
 });
 

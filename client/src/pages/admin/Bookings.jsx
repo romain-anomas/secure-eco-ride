@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Check, Eye, RefreshCw, Search, Send, X } from 'lucide-react';
 import { parseError, post } from '../../services/api.js';
@@ -6,7 +6,8 @@ import useFetch from '../../hooks/useFetch.js';
 import { Badge, Empty, ErrorBox, Modal, PageHeader, Pager, Spinner, TableWrap } from '../../components/admin/ui.jsx';
 import { BOOKING_STATUSES, STATUS_LABELS, formatDate, formatDateTime, formatTime } from '../../utils/format.js';
 import { prettyPhone } from '../../utils/phone.js';
-import BookingLocationMap from '../../components/admin/BookingLocationMap.jsx';
+
+const BookingLocationMap = lazy(() => import('../../components/admin/BookingLocationMap.jsx'));
 
 export default function Bookings() {
   const { id: routeId } = useParams();
@@ -27,10 +28,20 @@ export default function Bookings() {
     if (routeId) navigate('/admin/bookings', { replace: true });
   }
 
-  // refresh every 30 s so new website bookings show up without reloading
+  // Avoid background refreshes and overlapping requests when the API is slow.
   useEffect(() => {
-    const t = setInterval(() => { reload(); }, 30000);
-    return () => clearInterval(t);
+    let loadingRefresh = false;
+    const refreshVisiblePage = async () => {
+      if (document.visibilityState !== 'visible' || loadingRefresh) return;
+      loadingRefresh = true;
+      try { await reload(); } finally { loadingRefresh = false; }
+    };
+    const timer = window.setInterval(refreshVisiblePage, 30000);
+    document.addEventListener('visibilitychange', refreshVisiblePage);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshVisiblePage);
+    };
   }, [reload]);
 
   const setFilter = (k) => (e) => { setPage(1); setFilters((f) => ({ ...f, [k]: e.target.value })); };
@@ -167,7 +178,7 @@ function BookingDetail({ id, onClose, onChanged }) {
 
           <section className="admin-card">
             <h3 className="mb-3 font-display text-base font-black uppercase">Customer pickup pin</h3>
-            <BookingLocationMap booking={b} />
+            <Suspense fallback={<Spinner label="Loading booking map…" />}><BookingLocationMap booking={b} /></Suspense>
           </section>
 
           {b.status === 'PENDING' && <section className="admin-card">

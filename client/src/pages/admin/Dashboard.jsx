@@ -236,9 +236,8 @@ function PendingBookings({ data, loading, error }) {
 export default function Dashboard() {
   const summary = useFetch('/dashboard/summary');
   const pending = useFetch('/bookings', { params: { status: 'PENDING', limit: 6 }, initial: [] });
-  const reports = useFetch('/reports');
   const stats = summary.data;
-  const report = reports.data;
+  const activity = stats?.activity;
 
   return (
     <div className="admin-dashboard mx-auto max-w-[1500px] space-y-5 sm:space-y-6">
@@ -276,15 +275,14 @@ export default function Dashboard() {
 
       <PendingBookings data={pending.data} loading={pending.loading} error={pending.error} />
 
-      <ErrorBox>{reports.error && parseError(reports.error).message}</ErrorBox>
       <div className="grid gap-5 xl:grid-cols-5">
         <Panel
           title="Booking activity"
           subtitle="Daily ride requests over the last 30 days"
           className="xl:col-span-3"
-          action={report && <Link to="/admin/reports" className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-bold text-moss hover:bg-leaf/10">Full report <ArrowUpRight size={14} /></Link>}
+          action={<Link to="/admin/reports" className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-bold text-moss hover:bg-leaf/10">Full report <ArrowUpRight size={14} /></Link>}
         >
-          {reports.loading && !report ? <Spinner label="Loading booking activity…" /> : report && <BookingTrend rows={report.per_day} from={report.from} to={report.to} />}
+          {summary.loading && !activity ? <Spinner label="Loading booking activity…" /> : activity && <BookingTrend rows={activity.per_day} from={activity.from} to={activity.to} />}
         </Panel>
         <Panel title="Booking status" subtitle="Current booking pipeline" className="xl:col-span-2">
           {summary.loading && !stats ? <Spinner label="Loading booking status…" /> : stats && <StatusChart statuses={stats.by_status} />}

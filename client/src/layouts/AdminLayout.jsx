@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, Bell, Car, ClipboardList, LayoutDashboard, LogOut, Menu, MessageCircle, MessageSquare, Settings, Tag, Truck, UserCheck, Users, X, Star, KeyRound, Images } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -6,10 +6,10 @@ import { get } from '../services/api.js';
 import Logo from '../components/Logo.jsx';
 import { Spinner } from '../components/admin/ui.jsx';
 import { enableBookingSound, playBookingSound, stopBookingSound, unlockBookingSound } from '../utils/bookingSound.js';
-import { listenForFcmMessages, showFcmNotification } from '../services/firebaseMessaging.js';
-import AdminAlertControls from '../components/admin/AdminAlertControls.jsx';
 import AdminPwaInstall from '../components/admin/AdminPwaInstall.jsx';
 import PushAlertSheet from '../components/PushAlertSheet.jsx';
+
+const AdminAlertControls = lazy(() => import('../components/admin/AdminAlertControls.jsx'));
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -95,7 +95,10 @@ export default function AdminLayout() {
   useEffect(() => {
     if (!user || user.role === 'DRIVER') return undefined;
     let stop = false;
+    let checkingForBookings = false;
     const tick = async () => {
+      if (stop || document.visibilityState !== 'visible' || checkingForBookings) return;
+      checkingForBookings = true;
       try {
         const { data } = await get('/bookings/unseen-count');
         if (stop) return;
@@ -123,33 +126,47 @@ export default function AdminLayout() {
         (data.booking_ids || []).forEach((id) => polledBookingIds.current.add(String(id)));
         last.current = data.count;
       } catch { /* ignore transient errors */ }
+      finally { checkingForBookings = false; }
     };
     tick();
     const t = setInterval(tick, 30000);
-    return () => { stop = true; clearInterval(t); };
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      stop = true;
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [user]);
 
   useEffect(() => {
     if (!user || !isAdmin) return undefined;
     let stopped = false;
     let unsubscribe = () => {};
-    listenForFcmMessages((data) => {
-      if (stopped || !data.bookingId || alertedBookingIds.current.has(String(data.bookingId))) return;
-      alertedBookingIds.current.add(String(data.bookingId));
-      showFcmNotification(data).catch((err) => console.error('[admin] could not display booking notification:', err.message));
-      setActiveAlert(data);
-      rememberNotification(data.title || 'New Ride Booking!', data.body || 'A new booking has arrived.');
-      if (soundEnabledRef.current) {
-        playBookingSound(
-          () => setSoundActive(false),
-          () => setBanner('Booking sound was blocked. Interact with this dashboard and enable sound.'),
-          () => setSoundActive(true),
-        );
+    async function startPushListener() {
+      try {
+        const { listenForFcmMessages, showFcmNotification } = await import('../services/firebaseMessaging.js');
+        if (stopped) return;
+        const stop = await listenForFcmMessages((data) => {
+          if (stopped || !data.bookingId || alertedBookingIds.current.has(String(data.bookingId))) return;
+          alertedBookingIds.current.add(String(data.bookingId));
+          showFcmNotification(data).catch((err) => console.error('[admin] could not display booking notification:', err.message));
+          setActiveAlert(data);
+          rememberNotification(data.title || 'New Ride Booking!', data.body || 'A new booking has arrived.');
+          if (soundEnabledRef.current) {
+            playBookingSound(
+              () => setSoundActive(false),
+              () => setBanner('Booking sound was blocked. Interact with this dashboard and enable sound.'),
+              () => setSoundActive(true),
+            );
+          }
+        });
+        if (stopped) stop();
+        else unsubscribe = stop;
+      } catch (err) {
+        console.error('[admin] foreground push listener unavailable:', err.message);
       }
-    }).then((stop) => {
-      if (stopped) stop();
-      else unsubscribe = stop;
-    }).catch((err) => console.error('[admin] foreground push listener unavailable:', err.message));
+    }
+    startPushListener();
     return () => { stopped = true; unsubscribe(); };
   }, [user, isAdmin]);
 
@@ -253,7 +270,7 @@ export default function AdminLayout() {
           </div>
         </div>
       )}
-      {isAdmin && <div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} soundActive={soundActive} lastNotification={lastNotification} onStopSound={() => { stopBookingSound(); setSoundActive(false); }} onToggleSound={toggleSound} onTestSound={testSound} /></div>}
+      {isAdmin && <Suspense fallback={null}><div className="px-4 pt-4 lg:px-8"><AdminAlertControls soundEnabled={soundEnabled} soundActive={soundActive} lastNotification={lastNotification} onStopSound={() => { stopBookingSound(); setSoundActive(false); }} onToggleSound={toggleSound} onTestSound={testSound} /></div></Suspense>}
       <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-5 lg:p-8"><Outlet /></main>
     </div>
   );
