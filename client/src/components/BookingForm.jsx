@@ -70,9 +70,9 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
     return () => { alive = false; };
   }, [mode]);
 
-  const detectPickupLocation = useCallback(({ force = false } = {}) => {
+  const detectPickupLocation = useCallback(() => {
     const requestId = ++locationRequest.current;
-    if (pickupEdited.current && !force) {
+    if (pickupEdited.current) {
       setLocationStatus('manual');
       return;
     }
@@ -226,7 +226,7 @@ export default function BookingForm({ mode = 'full', defaultServiceSlug }) {
         <Field id="bf-destination" label="Destination" error={errors.destination}>
           <input id="bf-destination" className={inputCls('destination')} value={form.destination} onChange={set('destination')} placeholder="Where are you going?" {...aria('destination')} />
         </Field>
-        <BookingMap point={pickupPoint} onChange={setPickupPoint} onLocate={() => detectPickupLocation({ force: true })} locationStatus={locationStatus} error={errors.pickup_pin} />
+        <BookingMap point={pickupPoint} onChange={setPickupPoint} locationStatus={locationStatus} error={errors.pickup_pin} />
         <Field id="bf-pickup_date" label="Date" error={errors.pickup_date}>
           <input id="bf-pickup_date" type="date" min={today} className={inputCls('pickup_date')} value={form.pickup_date} onChange={set('pickup_date')} {...aria('pickup_date')} />
         </Field>

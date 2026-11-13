@@ -22,7 +22,7 @@ function Recenter({ point }) {
   return null;
 }
 
-export default function BookingMap({ point, onChange, onLocate, locationStatus, error }) {
+export default function BookingMap({ point, onChange, locationStatus, error }) {
   const center = point ? [point.latitude, point.longitude] : DEFAULT_CENTER;
   const statusText = {
     detecting: 'Detecting your current location…',
@@ -33,7 +33,7 @@ export default function BookingMap({ point, onChange, onLocate, locationStatus, 
   }[locationStatus];
 
   return <section id="bf-pickup_pin" tabIndex={-1} className="rounded-2xl border border-night/10 p-4 focus:outline-none sm:col-span-2" aria-labelledby="pickup-map-title">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div>
       <div>
         <h3 id="pickup-map-title" className="font-bold">Choose pickup on map <span className="text-red-600" aria-hidden="true">*</span></h3>
         <p className="mt-1 text-xs text-night/60">Your pickup pin will be sent to the admin and assigned driver. Drag the pin or tap the map to adjust it.</p>
@@ -41,9 +41,6 @@ export default function BookingMap({ point, onChange, onLocate, locationStatus, 
         {point && <p className="mt-1 text-xs text-night/55">Pin: {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</p>}
         {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
       </div>
-      <button type="button" className="btn btn-outline btn-sm" onClick={onLocate} disabled={locationStatus === 'detecting'}>
-        {locationStatus === 'detecting' ? 'Detecting…' : 'Detect my location'}
-      </button>
     </div>
     <div className="mt-3 h-64 overflow-hidden rounded-xl">
       <MapContainer center={center} zoom={point ? 16 : 12} className="h-full w-full" scrollWheelZoom>
