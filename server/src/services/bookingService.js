@@ -141,6 +141,35 @@ export async function changeStatus(id, status, userId, note) {
   return { booking: await getBookingById(id), previousStatus };
 }
 
+export async function completeDriverBooking(id, driverId, userId) {
+  return withTransaction(async (conn) => {
+    const [[booking]] = await conn.query(
+      'SELECT id, status, driver_id FROM bookings WHERE id = ? FOR UPDATE',
+      [id],
+    );
+    if (!booking) throw badRequest('Booking not found.');
+    if (Number(booking.driver_id) !== Number(driverId)) throw badRequest('This booking is not assigned to you.');
+    if (!ACTIVE_DRIVER_STATUSES.includes(booking.status)) throw badRequest('Only an active ride can be completed.');
+
+    await conn.query(
+      'UPDATE bookings SET status = ?, seen_by_admin = 1 WHERE id = ?',
+      ['COMPLETED', id],
+    );
+    await conn.query(
+      'INSERT INTO booking_status_history (booking_id, from_status, to_status, changed_by, note) VALUES (?,?,?,?,?)',
+      [id, booking.status, 'COMPLETED', userId, 'Ride completed by driver'],
+    );
+
+    const [[{ active }]] = await conn.query(
+      `SELECT COUNT(*) AS active FROM bookings WHERE driver_id = ? AND status IN (${ACTIVE_DRIVER_STATUSES.map(() => '?').join(',')})`,
+      [driverId, ...ACTIVE_DRIVER_STATUSES],
+    );
+    const availability = active ? 'BUSY' : 'AVAILABLE';
+    await conn.query('UPDATE drivers SET status = ? WHERE id = ?', [availability, driverId]);
+    return { status: 'COMPLETED', availability };
+  });
+}
+
 export async function decideBooking(id, decision, userId) {
   const status = decision === 'ACCEPT' ? 'CONFIRMED' : 'CANCELLED';
   const previousStatus = await withTransaction(async (conn) => {

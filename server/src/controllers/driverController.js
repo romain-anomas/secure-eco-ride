@@ -3,6 +3,7 @@ import { pool, withTransaction } from '../config/db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { badRequest, notFound, serviceUnavailable } from '../utils/AppError.js';
 import { driverPushTokenCount, hasDriverPushToken, isFcmConfigured, registerDriverPushToken, removeDriverPushToken } from '../services/pushService.js';
+import { completeDriverBooking } from '../services/bookingService.js';
 
 const ACTIVE = ['ASSIGNED', 'DRIVER_ON_WAY', 'PICKED_UP'];
 
@@ -87,6 +88,13 @@ export const updateAvailability = asyncHandler(async (req, res) => {
     return next;
   });
   res.json({ data: { status, available: status === 'AVAILABLE' } });
+});
+
+export const completeBooking = asyncHandler(async (req, res) => {
+  const driverId = req.user.driver_id;
+  if (!driverId) throw notFound('Driver account is not linked to a driver.');
+  const result = await completeDriverBooking(req.params.id, driverId, req.user.id);
+  res.json({ data: result });
 });
 
 export const pushStatus = asyncHandler(async (req, res) => {

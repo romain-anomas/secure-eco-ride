@@ -65,6 +65,7 @@ router.delete('/drivers/:id', authenticate, adminOnly, id, drivers.remove);
 router.post('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driverAccountSchema), driver.createAccount);
 router.patch('/drivers/:id/account', authenticate, adminOnly, id, validate(S.driverAccountUpdateSchema), driver.updateAccount);
 router.get('/driver/bookings', authenticate, driverOnly, driver.assignedBookings);
+router.post('/driver/bookings/:id/complete', authenticate, driverOnly, id, driver.completeBooking);
 router.patch('/driver/availability', authenticate, driverOnly, validate(S.driverAvailabilitySchema), driver.updateAvailability);
 router.get('/driver/push/status', authenticate, driverOnly, driver.pushStatus);
 router.post('/driver/push/devices', authenticate, driverOnly, driver.registerPushDevice);
